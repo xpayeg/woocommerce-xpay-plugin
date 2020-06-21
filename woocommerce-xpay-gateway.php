@@ -60,6 +60,14 @@ add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), 'wc_xpay_gatew
  * @author 		Xpay
  */
 add_action( 'plugins_loaded', 'wc_xpay_gateway_init', 11);
+add_action('woocommerce_checkout_process', 'custom_validate_billing_phone');
+			function custom_validate_billing_phone() {
+			$is_correct = preg_match("/^01[0-9]{9}/", $_POST['billing_phone']);
+			var_dump($is_correct);
+			if ( $_POST['billing_phone'] && !$is_correct) {
+			wc_add_notice( __( 'The Phone field should start with 01 and to be 11 digits ex: 012987654321' ), 'error' );
+			}
+			}
 
 function wc_xpay_gateway_init() {
 
@@ -90,6 +98,10 @@ function wc_xpay_gateway_init() {
 			// add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'process_admin_options' ) );
 			// add_action( 'wp_footer', 'checkout_place_order_script' );
 			add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'process_admin_options' ) );
+			// Custom validation for Billing Phone checkout field
+			
+
+
 
 			
 			add_filter( 'the_title', 'woo_personalize_order_received_title', 10, 2 );
@@ -142,9 +154,32 @@ function wc_xpay_gateway_init() {
 					$url = $wc_settings->get_option("iframe_base_url") . "/api/payments/pay/variable-amount";
 					$resp = httpPost($url , $payload);
 					$resp = json_decode($resp, TRUE);
+					generate_payment_modal($resp["data"]["iframe_url"], $resp["data"]["transaction_uuid"], $order->id);
+					add_post_meta($order->id, "xpay_transaction_id", $resp["data"]["transaction_uuid"]);
+					return "<p id='xpay_message'> Your order is waiting XPAY payment you must see xpay popup now or <a data-toggle='modal' data-target='#myModal'> click here </a></p>";
 				}
-				generate_payment_modal($resp["data"]["iframe_url"], $resp["data"]["transaction_uuid"], $order->id);
-				return "<p id='xpay_message'> Your order is waiting XPAY payment you must see xpay popup now or <a data-toggle='modal' data-target='#myModal'> click here </a></p>";
+				else if($payment_method == "kiosk"){
+					$amount_pounds = $order->get_subtotal();
+					$payload = json_encode(array (
+						"billing_data" => array (
+							"name" => $name,
+							"email" => $email,
+							"phone_number" => $mobile,
+						),
+						"community_id" => $wc_settings->get_option("community_id"),
+						"variable_amount_id" => $wc_settings->get_option("variable_amount_id"),
+						"pay_using"=> "kiosk",
+						"amount_piasters"=> $amount_pounds * 100, 
+					));
+					$billing_first_name = $order->get_billing_first_name();
+					$url = $wc_settings->get_option("iframe_base_url") . "/api/payments/pay/variable-amount";
+					$resp = httpPost($url , $payload);
+					$resp = json_decode($resp, TRUE);
+					add_post_meta($order->id, "xpay_transaction_id", $resp["data"]["transaction_uuid"]);
+					return "<p id='xpay_message'>".$resp["data"]["message"]."</p>";
+					
+				}
+				
 			}
 		}
 
@@ -292,6 +327,13 @@ if(!function_exists("generate_payment_modal")) {
 					),
 					'default' => 'https://new-dev.xpay.app'				
 				),
+				'callback_url' => array(
+					'title'       => __( 'Callback URL :<h4 style="width: max-content;color:blue">'.site_url().'/wp-content/plugins/xpay/update_order.php <h4>', 'wc-gateway-xpay' ),
+					'type'        => 'text',
+					'description' => __( 'This is callback url that you will add in your api payment on xpay dashboard', 'wc-gateway-xpay' ),
+					'default'     => __( site_url().'/wp-content/plugins/xpay/update_order.php', 'wc-gateway-xpay' ),
+					'custom_attributes' => array( 'hidden' => true)
+				),
 			) );
 		}
 
@@ -302,16 +344,19 @@ if(!function_exists("generate_payment_modal")) {
 			echo '
 				<div class="form-row form-row-first">
 					<label>Payment Method <span class="required">*</span></label>
-					<input checked type="radio" id="cash" name="xpay_payment_method" value="cash">
-					<label style="display:inline" for="male">Cash</label><br>
-					<input type="radio" id="kiosk" name="xpay_payment_method" value="kiosk">
+					<input checked type="radio" id="kiosk" name="xpay_payment_method" value="kiosk">
 					<label style="display:inline" for="female">Kiosk</label><br>
 					<input type="radio" id="card" name="xpay_payment_method" value="card">
 					<label style="display:inline" for="other">Credit Card</label>
 				</div>
 				';
 			do_action( 'woocommerce_xpay_form_end', $this->id );
-        }
+		}
+		
+		// public function validate_billing_phone_field( $key, $value){
+		// 	return "wrong";
+		// }
+	
 	
 		/**
 		 * Output for the order received page.
