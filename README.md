@@ -27,6 +27,10 @@ Step 4: From the admin site, go to Woocommerce > Settings and select the Checkou
 
 ![](/screenshots/4.png?raw=true "")
 
+&#x1F534;&#x1F534;Note : Don't forget to update your api payment on XPAY with your xpay plugin callback URL.
+
+![](/screenshots/5.png?raw=true "")
+
 
 Step 5: Once on the Xpay Payment Gateway settings page, fill in the Xpay settings data community ID, payment API key and API payment ID. These values can be obtained from your Xpay contact person as indicated in the pre-requisite section above.
 
