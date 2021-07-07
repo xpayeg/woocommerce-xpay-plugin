@@ -198,6 +198,8 @@ if(!function_exists("generate_payment_modal")) {
 			backdrop: 'static',
 			keyboard: false,
 			});
+			
+			$('.modal-backdrop').css("z-index",900);
 
 			$('#myModal').on('hidden.bs.modal', function () {
 				trn_uuid = $("#trn_uuid").val()
