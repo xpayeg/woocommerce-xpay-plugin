@@ -138,7 +138,7 @@ function wc_xpay_gateway_init() {
 				$wc_settings = new WC_Gateway_Xpay;
 				$payment_method = $_REQUEST["xpay_payment"];
 				if($payment_method == "card"){
-					$amount_pounds = $order->get_subtotal();
+					$amount_pounds = $order->get_total();
 					$payload = json_encode(array (
 						"billing_data" => array (
 							"name" => $name,
@@ -159,7 +159,7 @@ function wc_xpay_gateway_init() {
 					return "<p id='xpay_message'> Your order is waiting XPAY payment you must see xpay popup now or <a data-toggle='modal' data-target='#myModal'> click here </a></p>";
 				}
 				else if($payment_method == "kiosk"){
-					$amount_pounds = $order->get_subtotal();
+					$amount_pounds = $order->get_total();
 					$payload = json_encode(array (
 						"billing_data" => array (
 							"name" => $name,
