@@ -346,10 +346,10 @@ if(!function_exists("generate_payment_modal")) {
 			echo '
 				<div class="form-row form-row-first">
 					<label>Payment Method <span class="required">*</span></label>
-					<input checked type="radio" id="kiosk" name="xpay_payment_method" value="kiosk">
-					<label style="display:inline" for="female">Kiosk</label><br>
-					<input type="radio" id="card" name="xpay_payment_method" value="card">
-					<label style="display:inline" for="other">Credit Card</label>
+					<input checked type="radio" id="card" name="xpay_payment_method" value="card">
+					<label style="display:inline" for="card">Credit Card</label>
+					<input type="radio" id="kiosk" name="xpay_payment_method" value="kiosk">
+					<label style="display:inline" for="kiosk">Kiosk</label><br>
 				</div>
 				';
 			do_action( 'woocommerce_xpay_form_end', $this->id );
