@@ -133,7 +133,7 @@ function wc_xpay_gateway_init() {
 			function woo_change_order_received_text( $str, $order ) {
 				$name = $order->get_billing_first_name(). " " . $order->get_billing_last_name();
 				$email = $order->get_billing_email();
-				$mobile = "+2" . $order->get_billing_phone();
+				$mobile = $order->get_billing_phone(); //"+2" . 
 				global $woocommerce;
 				$wc_settings = new WC_Gateway_Xpay;
 				$payment_method = $_REQUEST["xpay_payment"];
@@ -421,7 +421,7 @@ function httpPost($url, $data)
     $curl = curl_init($url);
     curl_setopt($curl, CURLOPT_POST, true);
     curl_setopt( $curl, CURLOPT_POSTFIELDS, $data );
-	curl_setopt( $curl, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
+	curl_setopt( $curl, CURLOPT_HTTPHEADER, array('Content-Type:application/json', 'User-Agent:XPay'));
     curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
     $response = curl_exec($curl);
     curl_close($curl);
