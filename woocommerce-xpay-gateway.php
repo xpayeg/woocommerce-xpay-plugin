@@ -204,7 +204,7 @@ if(!function_exists("generate_payment_modal")) {
 			$('#myModal').on('hidden.bs.modal', function () {
 				trn_uuid = $("#trn_uuid").val()
 				site_url = '<?php echo site_url(); ?>'
-				check_trn_endpoint_url = site_url + '/wp-content/plugins/xpay/check_transaction.php';
+				check_trn_endpoint_url = site_url + '/wp-content/plugins/woocommerce-xpay-plugin/check_transaction.php';
 				
 				$.get(check_trn_endpoint_url,
 				{
