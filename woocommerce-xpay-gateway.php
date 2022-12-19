@@ -147,6 +147,7 @@ function wc_xpay_gateway_init() {
 						),
 						"community_id" => $wc_settings->get_option("community_id"),
 						"variable_amount_id" => $wc_settings->get_option("variable_amount_id"),
+						"currency" => $wc_settings->get_option("currency"),
 						"pay_using"=> "card",
 						"amount_piasters"=> $amount_pounds * 100, 
 					));
@@ -303,6 +304,18 @@ if(!function_exists("generate_payment_modal")) {
 					'description' => __( 'This is the ID of your community you get form Xpay', 'wc-gateway-xpay' ),
 					'desc_tip'    => true,
 					'required' => true,
+				),
+				'currency' => array(
+					'title'       => __( 'currency', 'wc-gateway-xpay' ),
+					'type'        => 'select',
+					'required'    => true,
+					'options'     => array(
+									  'USD' => 'USD',
+									  'EUR' => 'EUR',
+									  'EGP' => 'EGP',
+									  'SAR' => 'SAR',
+					),
+					'default' => 'EGP'
 				),
 				'variable_amount_id' => array(
 					'title'       => __( 'Variable Amount Template ID', 'wc-gateway-xpay' ),
