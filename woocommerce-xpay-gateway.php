@@ -149,7 +149,7 @@ function wc_xpay_gateway_init() {
 						"variable_amount_id" => $wc_settings->get_option("variable_amount_id"),
 						"currency" => $wc_settings->get_option("currency"),
 						"pay_using"=> "card",
-						"amount_piasters"=> $amount_pounds * 100, 
+						"amount_piasters"=> $amount_pounds, 
 					));
 					$billing_first_name = $order->get_billing_first_name();
 					$url = $wc_settings->get_option("iframe_base_url") . "/api/payments/pay/variable-amount";
