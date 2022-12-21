@@ -152,7 +152,7 @@ function wc_xpay_gateway_init() {
 						"amount_piasters"=> $amount_pounds, 
 					));
 					$billing_first_name = $order->get_billing_first_name();
-					$url = $wc_settings->get_option("iframe_base_url") . "/api/payments/pay/variable-amount";
+					$url = $wc_settings->get_option("iframe_base_url") . "/api/v1/payments/pay/variable-amount";
 					$resp = httpPost($url , $payload);
 					$resp = json_decode($resp, TRUE);
 					generate_payment_modal($resp["data"]["iframe_url"], $resp["data"]["transaction_uuid"], $order->id);
@@ -170,7 +170,7 @@ function wc_xpay_gateway_init() {
 						"community_id" => $wc_settings->get_option("community_id"),
 						"variable_amount_id" => $wc_settings->get_option("variable_amount_id"),
 						"pay_using"=> "kiosk",
-						"amount_piasters"=> $amount_pounds * 100, 
+						"amount_piasters"=> $amount_pounds, 
 					));
 					$billing_first_name = $order->get_billing_first_name();
 					$url = $wc_settings->get_option("iframe_base_url") . "/api/payments/pay/variable-amount";
