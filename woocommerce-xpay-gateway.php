@@ -138,7 +138,7 @@ function wc_xpay_gateway_init() {
 				$wc_settings = new WC_Gateway_Xpay;
 				$payment_method = $_REQUEST["xpay_payment"];
 				if($payment_method == "card"){
-					$amount_pounds = $order->get_total();
+					$amount = $order->get_total();
 					$payload = json_encode(array (
 						"billing_data" => array (
 							"name" => $name,
@@ -149,7 +149,7 @@ function wc_xpay_gateway_init() {
 						"variable_amount_id" => $wc_settings->get_option("variable_amount_id"),
 						"currency" => $wc_settings->get_option("currency"),
 						"pay_using"=> "card",
-						"amount_piasters"=> $amount_pounds, 
+						"amount"=> $amount, 
 					));
 					$billing_first_name = $order->get_billing_first_name();
 					$url = $wc_settings->get_option("iframe_base_url") . "/api/v1/payments/pay/variable-amount";
