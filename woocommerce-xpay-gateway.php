@@ -137,6 +137,8 @@ function wc_xpay_gateway_init() {
 				global $woocommerce;
 				$wc_settings = new WC_Gateway_Xpay;
 				$payment_method = $_REQUEST["xpay_payment"];
+				$api_key = $wc_settings->get_option("payment_api_key");
+				$debug = $wc_settings->get_option("debug");
 				if($payment_method == "card"){
 					$amount = $order->get_total();
 					$payload = json_encode(array (
@@ -153,7 +155,8 @@ function wc_xpay_gateway_init() {
 					));
 					$billing_first_name = $order->get_billing_first_name();
 					$url = $wc_settings->get_option("iframe_base_url") . "/api/v1/payments/pay/variable-amount";
-					$resp = httpPost($url , $payload);
+					
+					$resp = httpPost($url , $payload, $api_key, $debug);
 					$resp = json_decode($resp, TRUE);
 					generate_payment_modal($resp["data"]["iframe_url"], $resp["data"]["transaction_uuid"], $order->id);
 					add_post_meta($order->id, "xpay_transaction_id", $resp["data"]["transaction_uuid"]);
@@ -174,7 +177,7 @@ function wc_xpay_gateway_init() {
 					));
 					$billing_first_name = $order->get_billing_first_name();
 					$url = $wc_settings->get_option("iframe_base_url") . "/api/payments/pay/variable-amount";
-					$resp = httpPost($url , $payload);
+					$resp = httpPost($url , $payload, $api_key. $debug);
 					$resp = json_decode($resp, TRUE);
 					add_post_meta($order->id, "xpay_transaction_id", $resp["data"]["transaction_uuid"]);
 					return "<p id='xpay_message'>".$resp["data"]["message"]."</p>";
@@ -352,6 +355,12 @@ if(!function_exists("generate_payment_modal")) {
 					'default'     => __( site_url().'/wp-content/plugins/xpay/update_order.php', 'wc-gateway-xpay' ),
 					'custom_attributes' => array( 'hidden' => true)
 				),
+				'debug' => array(
+					'title'   => __( 'Debug', 'wc-gateway-xpay' ),
+					'type'    => 'checkbox',
+					'label'   => __( 'Enable debug alert messages', 'wc-gateway-xpay' ),
+					'default' => 'no'
+				),
 			) );
 		}
 
@@ -432,14 +441,34 @@ if(!function_exists("generate_payment_modal")) {
 }
 
 
-function httpPost($url, $data)
+function httpPost($url, $data, $api_key, $debug = 'no')
 {
     $curl = curl_init($url);
     curl_setopt($curl, CURLOPT_POST, true);
     curl_setopt( $curl, CURLOPT_POSTFIELDS, $data );
-	curl_setopt( $curl, CURLOPT_HTTPHEADER, array('Content-Type:application/json', 'User-Agent:XPay'));
+	curl_setopt( $curl, CURLOPT_HTTPHEADER, array('Content-Type:application/json', 
+												'User-Agent:XPay',
+												'x-api-key: '.$api_key,
+											)
+				);
     curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
     $response = curl_exec($curl);
     curl_close($curl);
+	if($debug == 'yes') {
+		jsprint($response);
+	}
     return $response;
+}
+
+function jsprint($output, $is_alert=true, $with_script_tags = true) {
+    if($is_alert) {
+		$js_code = 'alert(' . json_encode($output, JSON_HEX_TAG) . ');';
+	}
+	else {
+	$js_code = 'console.log(' . json_encode($output, JSON_HEX_TAG) . ');';
+	}
+    if ($with_script_tags) {
+        $js_code = '<script>' . $js_code . '</script>';
+    }
+    echo $js_code;
 }
