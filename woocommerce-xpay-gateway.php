@@ -191,6 +191,7 @@ function wc_xpay_gateway_init() {
 
 if(!function_exists("generate_payment_modal")) {
 	function generate_payment_modal($iframe_url, $trn_uuid, $order_id, $community_id) {
+		
     // jQuery code start below
     ?>
 
@@ -208,12 +209,13 @@ if(!function_exists("generate_payment_modal")) {
 			$('.modal-backdrop').css("z-index",900);
 
 			$('#myModal').on('hidden.bs.modal', function () {
+				trn_uuid = $("#trn_uuid").val()
 				site_url = '<?php echo site_url(); ?>'
 				check_trn_endpoint_url = site_url + '/wp-content/plugins/woocommerce-xpay-plugin/check_transaction.php';
 				
 				$.get(check_trn_endpoint_url,
 				{
-					trn_uuid: '<?php echo $trn_uuid?>',
+					trn_uuid: trn_uuid,
 					community_id: '<?php echo $community_id?>',
 					order_id : '<?php echo $order_id?>'
 				},
