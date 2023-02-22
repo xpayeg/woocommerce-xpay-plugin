@@ -18,6 +18,7 @@ if ( ! in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins',
 	return;
 }
 
+require( 'utils.php' );
 
 /**
  * Add the gateway to WC Available Gateways
@@ -139,6 +140,7 @@ function wc_xpay_gateway_init() {
 				$payment_method = $_REQUEST["xpay_payment"];
 				$api_key = $wc_settings->get_option("payment_api_key");
 				$debug = $wc_settings->get_option("debug");
+				$community_id = $wc_settings->get_option("community_id");
 				if($payment_method == "card"){
 					$amount = $order->get_total();
 					$payload = json_encode(array (
@@ -147,7 +149,7 @@ function wc_xpay_gateway_init() {
 							"email" => $email,
 							"phone_number" => $mobile,
 						),
-						"community_id" => $wc_settings->get_option("community_id"),
+						"community_id" => $community_id,
 						"variable_amount_id" => $wc_settings->get_option("variable_amount_id"),
 						"currency" => $wc_settings->get_option("currency"),
 						"pay_using"=> "card",
@@ -158,7 +160,7 @@ function wc_xpay_gateway_init() {
 					
 					$resp = httpPost($url , $payload, $api_key, $debug);
 					$resp = json_decode($resp, TRUE);
-					generate_payment_modal($resp["data"]["iframe_url"], $resp["data"]["transaction_uuid"], $order->id);
+					generate_payment_modal($resp["data"]["iframe_url"], $resp["data"]["transaction_uuid"], $order->id, $community_id);
 					add_post_meta($order->id, "xpay_transaction_id", $resp["data"]["transaction_uuid"]);
 					return "<p id='xpay_message'> Your order is waiting XPAY payment you must see xpay popup now or <a data-toggle='modal' data-target='#myModal'> click here </a></p>";
 				}
@@ -170,7 +172,7 @@ function wc_xpay_gateway_init() {
 							"email" => $email,
 							"phone_number" => $mobile,
 						),
-						"community_id" => $wc_settings->get_option("community_id"),
+						"community_id" => $community_id,
 						"variable_amount_id" => $wc_settings->get_option("variable_amount_id"),
 						"pay_using"=> "kiosk",
 						"amount_piasters"=> $amount_pounds, 
@@ -188,17 +190,14 @@ function wc_xpay_gateway_init() {
 		}
 
 if(!function_exists("generate_payment_modal")) {
-	function generate_payment_modal($iframe_url, $trn_uuid, $order_id) {
-		
+	function generate_payment_modal($iframe_url, $trn_uuid, $order_id, $community_id) {
     // jQuery code start below
     ?>
 
-	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css">
-	<script
-  		src="https://code.jquery.com/jquery-3.6.3.min.js"
-  		integrity="sha256-pvPw+upLPUjgMXY0G+8O0xUf+/Im1MZjXxxgOcBQBXU="
-  		crossorigin="anonymous"></script>
-  	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.min.js"></script>
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+	
 	<script>
 		jQuery( function($){
 			$('#myModal').modal({
@@ -209,14 +208,13 @@ if(!function_exists("generate_payment_modal")) {
 			$('.modal-backdrop').css("z-index",900);
 
 			$('#myModal').on('hidden.bs.modal', function () {
-				trn_uuid = $("#trn_uuid").val()
 				site_url = '<?php echo site_url(); ?>'
 				check_trn_endpoint_url = site_url + '/wp-content/plugins/woocommerce-xpay-plugin/check_transaction.php';
 				
 				$.get(check_trn_endpoint_url,
 				{
-					trn_uuid: trn_uuid,
-					community_id: 10,
+					trn_uuid: '<?php echo $trn_uuid?>',
+					community_id: '<?php echo $community_id?>',
 					order_id : '<?php echo $order_id?>'
 				},
 				function(status){
@@ -440,35 +438,3 @@ if(!function_exists("generate_payment_modal")) {
   } // end \WC_Gateway_Xpay class
 }
 
-
-function httpPost($url, $data, $api_key, $debug = 'no')
-{
-    $curl = curl_init($url);
-    curl_setopt($curl, CURLOPT_POST, true);
-    curl_setopt( $curl, CURLOPT_POSTFIELDS, $data );
-	curl_setopt( $curl, CURLOPT_HTTPHEADER, array('Content-Type:application/json', 
-												'User-Agent:XPay',
-												'x-api-key: '.$api_key,
-											)
-				);
-    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-    $response = curl_exec($curl);
-    curl_close($curl);
-	if($debug == 'yes') {
-		jsprint($response);
-	}
-    return $response;
-}
-
-function jsprint($output, $is_alert=true, $with_script_tags = true) {
-    if($is_alert) {
-		$js_code = 'alert(' . json_encode($output, JSON_HEX_TAG) . ');';
-	}
-	else {
-	$js_code = 'console.log(' . json_encode($output, JSON_HEX_TAG) . ');';
-	}
-    if ($with_script_tags) {
-        $js_code = '<script>' . $js_code . '</script>';
-    }
-    echo $js_code;
-}
