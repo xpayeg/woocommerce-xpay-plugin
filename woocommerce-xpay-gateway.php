@@ -346,7 +346,7 @@ if(!function_exists("generate_payment_modal")) {
 									  'http://staging.xpay.app' => __('Staging'),
 									  'https://communities.xpay.app' => __('Production'),
 					),
-					'default' => 'https://new-dev.xpay.app'				
+					'default' => 'https://staging.xpay.app'				
 				),
 				'callback_url' => array(
 					'title'       => __( 'Callback URL :<h4 style="width: max-content;color:blue">'.site_url().'/wp-content/plugins/xpay/update_order.php <h4>', 'wc-gateway-xpay' ),
