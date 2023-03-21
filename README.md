@@ -13,11 +13,11 @@ this info
 # Installation
 Step 1: Download the contents of this repository.
 
-Step 2: Copy the folder "woocommerce-xpay-plugin", then go to your wordpress site root folder and paste it in the "plugins" folder. This is typically located in {your-wordpress-site-folder}\wp-content\plugins.
+Step 2: Copy the folder "woocommerce-xpay-plugin-1.0", then go to your wordpress site root folder and paste it in the "plugins" folder. This is typically located in {your-wordpress-site-folder}\wp-content\plugins.
 
 ![](/screenshots/1.png?raw=true "")
 
-Step 3: add read and execute premissions to "woocommerce-xpay-plugin/check_transaction.php" and "woocommerce-xpay-plugin/upate_order.php" to make them accessible from the web.
+Step 3: add read and execute premissions to "woocommerce-xpay-plugin-1.0/check_transaction.php" and "woocommerce-xpay-plugin-1.0/upate_order.php" to make them accessible from the web.
 
 Step 4: Open your wordpress site's admin page and navigate to Plugins > Installed Plugins. Then find WooCommerce XPAY Gateway and click on Activate
 
