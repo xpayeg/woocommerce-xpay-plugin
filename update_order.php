@@ -14,7 +14,7 @@ WHERE meta_key = 'xpay_transaction_id' AND  meta_value = '$transaction_id' LIMIT
 $order = wc_get_order( $posts[0]["post_id"] );
 
 if ($data["transaction_status"] == "SUCCESSFUL"){
-    $order->update_status( 'on-hold', __( 'Awaiting approval', 'wc-gateway-xpay' ) );
+    $order->update_status( 'completed', __( 'Awaiting approval', 'wc-gateway-xpay' ) );
 }
 echo "status updated successfully";
 
