@@ -185,7 +185,29 @@ function wc_xpay_gateway_init() {
 					return "<p id='xpay_message'>".$resp["data"]["message"]."</p>";
 					
 				}
-				
+				else if($payment_method == "fawry"){
+					$amount = $order->get_total();
+					$payload = json_encode(array (
+						"billing_data" => array (
+							"name" => $name,
+							"email" => $email,
+							"phone_number" => $mobile,
+						),
+						"community_id" => $community_id,
+						"variable_amount_id" => $wc_settings->get_option("variable_amount_id"),
+						"currency" => $wc_settings->get_option("currency"),
+						"pay_using"=> "fawry",
+						"amount"=> $amount, 
+					));
+					$billing_first_name = $order->get_billing_first_name();
+					$url = $wc_settings->get_option("iframe_base_url") . "/api/v1/payments/pay/variable-amount";
+					
+					$resp = httpPost($url , $payload, $api_key, $debug);
+					$resp = json_decode($resp, TRUE);
+					generate_payment_modal($resp["data"]["iframe_url"], $resp["data"]["transaction_uuid"], $order->id, $community_id);
+					add_post_meta($order->id, "xpay_transaction_id", $resp["data"]["transaction_uuid"]);
+					return "<p id='xpay_message'> Your order is waiting XPAY payment you must see xpay popup now or <a data-toggle='modal' data-target='#myModal'> click here </a></p>";
+				}
 			}
 		}
 
@@ -370,14 +392,24 @@ if(!function_exists("generate_payment_modal")) {
 			// I recommend to use inique IDs, because other gateways could already use #ccNo, #expdate, #cvc
 			echo '
 				<div class="form-row form-row-first">
-					<label>Payment Method <span class="required">*</span></label>
-					<input checked type="radio" id="card" name="xpay_payment_method" value="card">
-					<label style="display:inline" for="card">Credit Card</label>
-					<input type="radio" id="kiosk" name="xpay_payment_method" value="kiosk">
-					<label style="display:inline" for="kiosk">Kiosk</label><br>
+					<label for="xpay_payment_method">Payment Method <span class="required">*</span></label>
+					<div class="xpay-payment-methods">
+						<label class="xpay-method">
+							<input type="radio" id="xpay_card" name="xpay_payment_method" value="card">
+							Credit Card
+						</label>
+						<label class="xpay-method">
+							<input type="radio" id="xpay_kiosk" name="xpay_payment_method" value="kiosk">
+							Kiosk
+						</label>
+						<label class="xpay-method">
+							<input type="radio" id="xpay_fawry" name="xpay_payment_method" value="fawry">
+							Fawry
+						</label>
+					</div>
 				</div>
-				';
-			do_action( 'woocommerce_xpay_form_end', $this->id );
+			';
+			do_action('woocommerce_xpay_form_end', $this->id);
 		}
 		
 		// public function validate_billing_phone_field( $key, $value){
