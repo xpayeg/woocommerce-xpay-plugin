@@ -252,6 +252,7 @@ if(!function_exists("generate_payment_modal")) {
 			});
 			
 			$('#myModal').css("z-index",900);
+			$(".modal-backdrop:not(#myModal)").hide();
 
 			$('#myModal').on('hidden.bs.modal', function () {
 				trn_uuid = $("#trn_uuid").val()
