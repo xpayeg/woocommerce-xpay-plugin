@@ -292,7 +292,7 @@ if(!function_exists("generate_payment_modal")) {
 					</div>
 					<div class="modal-footer">
 					<input type="hidden" name="trn_uuid" id="trn_uuid" value="<?php echo $trn_uuid; ?>">
-					<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+					<button type="button" class="btn" data-dismiss="modal">Close</button>
 					</div>
 				</div>
 				
