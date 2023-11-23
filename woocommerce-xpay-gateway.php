@@ -61,14 +61,16 @@ add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), 'wc_xpay_gatew
  * @author 		Xpay
  */
 add_action( 'plugins_loaded', 'wc_xpay_gateway_init', 11);
-add_action('woocommerce_checkout_process', 'custom_validate_billing_phone');
-			function custom_validate_billing_phone() {
-			$is_correct = preg_match("/^01[0-9]{9}/", $_POST['billing_phone']);
-			var_dump($is_correct);
-			if ( $_POST['billing_phone'] && !$is_correct) {
-			wc_add_notice( __( 'The Phone field should start with 01 and to be 11 digits ex: 012987654321' ), 'error' );
-			}
-			}
+function xpay_custom_validate_billing_phone() {
+	if (isset($_POST['billing_phone'])) {
+		$is_correct = preg_match("/^01[0-9]{9}$/", $_POST['billing_phone']);
+		if (!$is_correct) {
+			wc_add_notice(__('The Phone field should start with 01 and be 11 digits long, e.g., 012987654321', 'wc-gateway-xpay'), 'error');
+		}
+	}
+}
+add_action('woocommerce_checkout_process', 'xpay_custom_validate_billing_phone');
+
 
 function wc_xpay_gateway_init() {
 
@@ -80,6 +82,7 @@ function wc_xpay_gateway_init() {
 		public function __construct() {
 	  
 			$this->id                 = 'xpay_gateway';
+			$this->xpay_plugin_url =  plugin_dir_url(__FILE__);
 			$this->icon               = apply_filters('woocommerce_offline_icon', '');
 			$this->has_fields         = True;
 			$this->method_title       = __( 'Xpay', 'wc-gateway-xpay' );
@@ -162,7 +165,7 @@ function wc_xpay_gateway_init() {
 					$resp = json_decode($resp, TRUE);
 					generate_payment_modal($resp["data"]["iframe_url"], $resp["data"]["transaction_uuid"], $order->id, $community_id);
 					add_post_meta($order->id, "xpay_transaction_id", $resp["data"]["transaction_uuid"]);
-					return "<p id='xpay_message'> Your order is waiting XPAY payment you must see xpay popup now or <a data-toggle='modal' data-target='#myModal'> click here </a></p>";
+					return "<p id='xpay_message'> Your order is waiting XPAY payment you must see xpay popup now or <a data-toggle='modal' data-target='#xpay_modal'> click here </a></p>";
 				}
 				else if($payment_method == "fawry"){
 					$amount = $order->get_total();
@@ -185,7 +188,7 @@ function wc_xpay_gateway_init() {
 					$resp = json_decode($resp, TRUE);
 					generate_payment_modal($resp["data"]["iframe_url"], $resp["data"]["transaction_uuid"], $order->id, $community_id);
 					add_post_meta($order->id, "xpay_transaction_id", $resp["data"]["transaction_uuid"]);
-					return "<p id='xpay_message'> Your order is waiting XPAY payment you must see xpay popup now or <a data-toggle='modal' data-target='#myModal'> click here </a></p>";
+					return "<p id='xpay_message'> Your order is waiting XPAY payment you must see xpay popup now or <a data-toggle='modal' data-target='#xpay_modal'> click here </a></p>";
 				}
 			}
 		}
@@ -201,30 +204,33 @@ if(!function_exists("generate_payment_modal")) {
   	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
 	
 	<script>
-		jQuery( function($){
-			$('#myModal').modal({
+		xpay_plugin_url = '<?php  echo plugin_dir_url(__FILE__)?>'
+		XPay_JQ = jQuery.noConflict( true );
+		XPay_JQ( function(XPay_JQ){
+			XPay_JQ('#xpay_modal').modal({
 			backdrop: 'static',
 			keyboard: false,
 			});
 			
-			$('#myModal').css("z-index",900);
-			$(".modal-backdrop:not(#myModal)").hide();
+			//XPay_JQ('#xpay_modal').css("z-index",900);
+			//XPay_JQ(".modal-backdrop:not(#xpay_modal)").hide();
+			XPay_JQ('#xpay_modal').on('shown.bs.modal', function () {
+				XPay_JQ('#xpay_modal').css("z-index",900);
+				XPay_JQ(".modal-backdrop:not(#xpay_modal)").hide();
+			});
 
-			$('#myModal').on('hidden.bs.modal', function () {
-				trn_uuid = $("#trn_uuid").val()
-				site_url = '<?php echo site_url(); ?>'
-				check_trn_endpoint_url = site_url + '/wp-content/plugins/woocommerce-xpay-plugin-1.0/check_transaction.php';
-				
-				$.get(check_trn_endpoint_url,
+			XPay_JQ('#xpay_modal').on('hidden.bs.modal', function () {
+				trn_uuid = XPay_JQ("#xpay_trn_uuid").val()
+				check_trn_endpoint_url = xpay_plugin_url + 'check_transaction.php';
+				XPay_JQ.get(check_trn_endpoint_url,
 				{
 					trn_uuid: trn_uuid,
 					community_id: '<?php echo $community_id?>',
 					order_id : '<?php echo $order_id?>'
 				},
-				function(status){
-					if (status == "SUCCESSFUL"){
-						console.log($("#xpay_message"));
-						$("#xpay_message").text("Thank you - your order payment done Successfully");
+				function(data){
+					if (data == "SUCCESSFUL"){
+						XPay_JQ("#xpay_message").text("Thank you - your order payment done Successfully");
 					}
 				});
 			})
@@ -233,7 +239,7 @@ if(!function_exists("generate_payment_modal")) {
 
 	</script>
 			<!-- Modal -->
-			<div class="modal fade" id="myModal" role="dialog">
+			<div class="modal fade" id="xpay_modal" role="dialog">
 				<div class="modal-dialog">
 				
 				<!-- Modal content-->
@@ -244,11 +250,11 @@ if(!function_exists("generate_payment_modal")) {
 					<p style="color:red">Don't close the popup until you finish payment</p>
 					</div>
 					<div class="modal-body">
-					<iframe src="<?php echo $iframe_url; ?>" style="border:none; width:100% ;height:450px "></iframe>
+					<iframe src="<?php echo esc_url($iframe_url)?>" style="border:none; width:100% ;height:450px "></iframe>
 					</div>
 					<div class="modal-footer">
-					<input type="hidden" name="trn_uuid" id="trn_uuid" value="<?php echo $trn_uuid; ?>">
-					<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+					<input type="hidden" name="trn_uuid" id="xpay_trn_uuid" value="<?php esc_html_e( $trn_uuid, 'wc-gateway-xpay' ); ?>">
+					<button type="button" class="btn" data-dismiss="modal">Close</button>
 					</div>
 				</div>
 				
@@ -351,10 +357,10 @@ if(!function_exists("generate_payment_modal")) {
 					'default' => 'https://staging.xpay.app'				
 				),
 				'callback_url' => array(
-					'title'       => __( 'Callback URL :<h4 style="width: max-content;color:blue">'.site_url().'/wp-content/plugins/xpay/update_order.php <h4>', 'wc-gateway-xpay' ),
+					'title'       => __( 'Callback URL :<h4 style="width: max-content;color:blue">'.$this->xpay_plugin_url.'update_order.php <h4>', 'wc-gateway-xpay' ),
 					'type'        => 'text',
 					'description' => __( 'This is callback url that you will add in your api payment on xpay dashboard', 'wc-gateway-xpay' ),
-					'default'     => __( site_url().'/wp-content/plugins/xpay/update_order.php', 'wc-gateway-xpay' ),
+					'default'     => __( $this->xpay_plugin_url.'update_order.php', 'wc-gateway-xpay' ),
 					'custom_attributes' => array( 'hidden' => true)
 				),
 				'debug' => array(
@@ -375,8 +381,8 @@ if(!function_exists("generate_payment_modal")) {
 					<label for="xpay_payment_method">Payment Method <span class="required">*</span></label>
 					<div class="xpay-payment-methods">
 						<label class="xpay-method">
-							<input type="radio" id="xpay_card" name="xpay_payment_method" value="card">
-							Credit Card
+							<input type="radio" id="xpay_card" name="xpay_payment_method" value="card" checked>
+							Card
 						</label>
 						<label class="xpay-method">
 							<input type="radio" id="xpay_fawry" name="xpay_payment_method" value="fawry">
