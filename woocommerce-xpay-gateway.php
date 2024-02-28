@@ -167,27 +167,6 @@ function wc_xpay_gateway_init() {
 					add_post_meta($order->id, "xpay_transaction_id", $resp["data"]["transaction_uuid"]);
 					return "<p id='xpay_message'> Your order is waiting XPAY payment you must see xpay popup now or <a data-toggle='modal' data-target='#xpay_modal'> click here </a></p>";
 				}
-				else if($payment_method == "kiosk"){
-					$amount_pounds = $order->get_total();
-					$payload = json_encode(array (
-						"billing_data" => array (
-							"name" => $name,
-							"email" => $email,
-							"phone_number" => $mobile,
-						),
-						"community_id" => $community_id,
-						"variable_amount_id" => $wc_settings->get_option("variable_amount_id"),
-						"pay_using"=> "kiosk",
-						"amount_piasters"=> $amount_pounds, 
-					));
-					$billing_first_name = $order->get_billing_first_name();
-					$url = $wc_settings->get_option("iframe_base_url") . "/api/payments/pay/variable-amount";
-					$resp = httpPost($url , $payload, $api_key. $debug);
-					$resp = json_decode($resp, TRUE);
-					add_post_meta($order->id, "xpay_transaction_id", $resp["data"]["transaction_uuid"]);
-					return "<p id='xpay_message'>".$resp["data"]["message"]."</p>";
-					
-				}
 				else if($payment_method == "fawry"){
 					$amount = $order->get_total();
 					$payload = json_encode(array (
@@ -200,29 +179,6 @@ function wc_xpay_gateway_init() {
 						"variable_amount_id" => $wc_settings->get_option("variable_amount_id"),
 						"currency" => $wc_settings->get_option("currency"),
 						"pay_using"=> "fawry",
-						"amount"=> $amount, 
-					));
-					$billing_first_name = $order->get_billing_first_name();
-					$url = $wc_settings->get_option("iframe_base_url") . "/api/v1/payments/pay/variable-amount";
-					
-					$resp = httpPost($url , $payload, $api_key, $debug);
-					$resp = json_decode($resp, TRUE);
-					generate_payment_modal($resp["data"]["iframe_url"], $resp["data"]["transaction_uuid"], $order->id, $community_id);
-					add_post_meta($order->id, "xpay_transaction_id", $resp["data"]["transaction_uuid"]);
-					return "<p id='xpay_message'> Your order is waiting XPAY payment you must see xpay popup now or <a data-toggle='modal' data-target='#xpay_modal'> click here </a></p>";
-				}
-				else if($payment_method == "valu"){
-					$amount = $order->get_total();
-					$payload = json_encode(array (
-						"billing_data" => array (
-							"name" => $name,
-							"email" => $email,
-							"phone_number" => $mobile,
-						),
-						"community_id" => $community_id,
-						"variable_amount_id" => $wc_settings->get_option("variable_amount_id"),
-						"currency" => $wc_settings->get_option("currency"),
-						"pay_using"=> "valu",
 						"amount"=> $amount, 
 					));
 					$billing_first_name = $order->get_billing_first_name();
@@ -429,16 +385,8 @@ if(!function_exists("generate_payment_modal")) {
 							Card
 						</label>
 						<label class="xpay-method">
-							<input type="radio" id="xpay_kiosk" name="xpay_payment_method" value="kiosk">
-							Kiosk
-						</label>
-						<label class="xpay-method">
 							<input type="radio" id="xpay_fawry" name="xpay_payment_method" value="fawry">
 							Fawry
-						</label>
-						<label class="xpay-method">
-							<input type="radio" id="xpay_fawry" name="xpay_payment_method" value="valu">
-							valU
 						</label>
 					</div>
 				</div>
