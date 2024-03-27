@@ -144,8 +144,18 @@ function wc_xpay_gateway_init() {
 				$api_key = $wc_settings->get_option("payment_api_key");
 				$debug = $wc_settings->get_option("debug");
 				$community_id = $wc_settings->get_option("community_id");
+				
+				$order_amount = $order->get_total();
+				$url = $wc_settings->get_option("iframe_base_url") . "/api/v1/payments/prepare-amount/";
+				$payload = json_encode(array (
+					"community_id" => $community_id,
+					"amount"=> $order_amount, 
+				));
+				$resp = httpPost($url , $payload, $api_key, $debug);
+				$resp = json_decode($resp, TRUE);
+				$amount = $resp["data"]["total_amount"];
+				
 				if($payment_method == "card"){
-					$amount = $order->get_total();
 					$payload = json_encode(array (
 						"billing_data" => array (
 							"name" => $name,
@@ -168,7 +178,6 @@ function wc_xpay_gateway_init() {
 					return "<p id='xpay_message'> Your order is waiting XPAY payment you must see xpay popup now or <a data-toggle='modal' data-target='#xpay_modal'> click here </a></p>";
 				}
 				else if($payment_method == "fawry"){
-					$amount = $order->get_total();
 					$payload = json_encode(array (
 						"billing_data" => array (
 							"name" => $name,
