@@ -168,7 +168,7 @@ function wc_xpay_gateway_init() {
 					return "<p id='xpay_message'> Your order is waiting XPAY payment you must see xpay popup now or <a data-toggle='modal' data-target='#xpay_modal'> click here </a></p>";
 				}
 				else if($payment_method == "kiosk"){
-					$amount_pounds = $order->get_total();
+					$amount = $order->get_total();
 					$payload = json_encode(array (
 						"billing_data" => array (
 							"name" => $name,
@@ -178,10 +178,10 @@ function wc_xpay_gateway_init() {
 						"community_id" => $community_id,
 						"variable_amount_id" => $wc_settings->get_option("variable_amount_id"),
 						"pay_using"=> "kiosk",
-						"amount_piasters"=> $amount_pounds, 
+						"amount"=> $amount, 
 					));
 					$billing_first_name = $order->get_billing_first_name();
-					$url = $wc_settings->get_option("iframe_base_url") . "/api/payments/pay/variable-amount";
+					$url = $wc_settings->get_option("iframe_base_url") . "/api/v1/payments/pay/variable-amount";
 					$resp = httpPost($url , $payload, $api_key. $debug);
 					$resp = json_decode($resp, TRUE);
 					add_post_meta($order->id, "xpay_transaction_id", $resp["data"]["transaction_uuid"]);
