@@ -150,6 +150,7 @@ function wc_xpay_gateway_init() {
 				$payload = json_encode(array (
 					"community_id" => $community_id,
 					"amount"=> $order_amount, 
+					"selected_payment_method" => $payment_method
 				));
 				$resp = httpPost($url , $payload, $api_key, $debug);
 				$resp = json_decode($resp, TRUE);
