@@ -149,7 +149,8 @@ function wc_xpay_gateway_init() {
 				$url = $wc_settings->get_option("iframe_base_url") . "/api/v1/payments/prepare-amount/";
 				$payload = json_encode(array (
 					"community_id" => $community_id,
-					"amount"=> $order_amount, 
+					"amount"=> $order_amount,
+					"selected_payment_method" => $payment_method
 				));
 				$resp = httpPost($url , $payload, $api_key, $debug);
 				$resp = json_decode($resp, TRUE);
