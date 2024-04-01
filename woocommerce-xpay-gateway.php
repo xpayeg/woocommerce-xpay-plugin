@@ -155,6 +155,8 @@ function wc_xpay_gateway_init() {
 				$resp = httpPost($url , $payload, $api_key, $debug);
 				$resp = json_decode($resp, TRUE);
 				$amount = $resp["data"]["total_amount"];
+				$xpay_fees_amount = $resp["data"]["xpay_fees_amount"]; 
+
 				
 				if($payment_method == "card"){
 					$payload = json_encode(array (
@@ -176,7 +178,7 @@ function wc_xpay_gateway_init() {
 					$resp = json_decode($resp, TRUE);
 					generate_payment_modal($resp["data"]["iframe_url"], $resp["data"]["transaction_uuid"], $order->id, $community_id);
 					add_post_meta($order->id, "xpay_transaction_id", $resp["data"]["transaction_uuid"]);
-					return "<p id='xpay_message'> Your order is waiting XPAY payment you must see xpay popup now or <a data-toggle='modal' data-target='#xpay_modal'> click here </a></p>";
+					return "<p id='xpay_message'> Your order is waiting XPAY payment with a fee of <strong>$xpay_fees_amount EGP</strong>. You must see xpay popup now or <a data-toggle='modal' data-target='#xpay_modal'>click here</a>.</p>";
 				}
 				else if($payment_method == "fawry"){
 					$payload = json_encode(array (
@@ -198,7 +200,7 @@ function wc_xpay_gateway_init() {
 					$resp = json_decode($resp, TRUE);
 					generate_payment_modal($resp["data"]["iframe_url"], $resp["data"]["transaction_uuid"], $order->id, $community_id);
 					add_post_meta($order->id, "xpay_transaction_id", $resp["data"]["transaction_uuid"]);
-					return "<p id='xpay_message'> Your order is waiting XPAY payment you must see xpay popup now or <a data-toggle='modal' data-target='#xpay_modal'> click here </a></p>";
+					return "<p id='xpay_message'> Your order is waiting XPAY payment with a fee of <strong>$xpay_fees_amount EGP</strong>. you must see xpay popup now or <a data-toggle='modal' data-target='#xpay_modal'> click here </a></p>";
 				}
 			}
 		}
