@@ -438,10 +438,6 @@ if(!function_exists("generate_payment_modal")) {
 							Card
 						</label>
 						<label class="xpay-method">
-							<input type="radio" id="xpay_kiosk" name="xpay_payment_method" value="kiosk">
-							Kiosk
-						</label>
-						<label class="xpay-method">
 							<input type="radio" id="xpay_fawry" name="xpay_payment_method" value="fawry">
 							Fawry
 						</label>
