@@ -361,24 +361,25 @@ function wc_xpay_gateway_init() {
             do_action('woocommerce_xpay_form_start', $this->id);
 
             echo '
-                <div class="form-row form-row-first">
-                    <label for="xpay_payment_method">Payment Method <span class="required">*</span></label>
-                    <div class="xpay-payment-methods">
-                        <label class="xpay-method">
-                            <input type="radio" id="xpay_card" name="xpay_payment_method" value="card" checked>
-                            Card
-                        </label>
-                        <label class="xpay-method">
-                            <input type="radio" id="xpay_fawry" name="xpay_payment_method" value="fawry">
-                            Fawry
-                        </label>
-                        <label class="xpay-method">
-                            <input type="radio" id="xpay_valu" name="xpay_payment_method" value="valu">
-                            valU
-                        </label>
-                    </div>
+            <div class="form-row form-row-first">
+                <label for="xpay_payment_method">' . __('Payment Method', 'wc-gateway-xpay') . ' <span class="required">*</span></label>
+                <div class="xpay-payment-methods" style="text-align: left; direction: ltr;">
+                    <label class="xpay-method" style="display: flex; align-items: center;">
+                        <input type="radio" id="xpay_card" name="xpay_payment_method" value="card" checked style="margin-right: 5px;">
+                        ' . __('Card', 'wc-gateway-xpay') . '
+                    </label>
+                    <label class="xpay-method" style="display: flex; align-items: center;">
+                        <input type="radio" id="xpay_fawry" name="xpay_payment_method" value="fawry" style="margin-right: 5px;">
+                        ' . __('Fawry', 'wc-gateway-xpay') . '
+                    </label>
+                    <label class="xpay-method" style="display: flex; align-items: center;">
+                        <input type="radio" id="xpay_valu" name="xpay_payment_method" value="valu" style="margin-right: 5px;">
+                        ' . __('valU', 'wc-gateway-xpay') . '
+                    </label>
                 </div>
+            </div>
             ';
+            
             do_action('woocommerce_xpay_form_end', $this->id);
         }
 
