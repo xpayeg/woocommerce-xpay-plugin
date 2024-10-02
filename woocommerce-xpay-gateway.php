@@ -474,7 +474,7 @@ if (!function_exists("generate_payment_modal")) {
             });
         </script>
         <!-- Modal -->
-        <div class="modal fade" id="xpay_modal" role="dialog">
+        <div class="modal fade" id="xpay_modal" role="dialog" style="visibility:visible;"> 
             <div class="modal-dialog">
                 <!-- Modal content-->
                 <div class="modal-content">
