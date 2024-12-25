@@ -239,7 +239,7 @@ function wc_xpay_gateway_init() {
                             add_post_meta($order->id, "xpay_transaction_id", $resp["data"]["transaction_uuid"]);
                             return "<p id='xpay_message'> Your order is waiting XPAY payment you must see xpay popup now or <a data-toggle='modal' data-target='#xpay_modal'> click here </a></p>";
                         }
-                        else if($payment_method == "wallet"){
+                        else if($payment_method == "wallets"){
                             $amount = $order->get_total();
                             $payload = json_encode(array (
                                 "billing_data" => array (
@@ -400,8 +400,8 @@ function wc_xpay_gateway_init() {
                         ' . __('valU', 'wc-gateway-xpay') . '
                     </label>
                     <label class="xpay-method" style="display: flex; align-items: center;">
-                        <input type="radio" id="xpay_wallet" name="xpay_payment_method" value="wallet" style="margin-right: 5px;">
-                        ' . __('Meeza/Digital', 'wc-gateway-xpay') . '
+                        <input type="radio" id="xpay_wallet" name="xpay_payment_method" value="wallets" style="margin-right: 5px;">
+                        ' . __('Wallets', 'wc-gateway-xpay') . '
                     </label>
                 </div>
             </div>
