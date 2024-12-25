@@ -239,6 +239,29 @@ function wc_xpay_gateway_init() {
                             add_post_meta($order->id, "xpay_transaction_id", $resp["data"]["transaction_uuid"]);
                             return "<p id='xpay_message'> Your order is waiting XPAY payment you must see xpay popup now or <a data-toggle='modal' data-target='#xpay_modal'> click here </a></p>";
                         }
+                        else if($payment_method == "wallets"){
+                            $amount = $order->get_total();
+                            $payload = json_encode(array (
+                                "billing_data" => array (
+                                    "name" => $name,
+                                    "email" => $email,
+                                    "phone_number" => $mobile,
+                                ),
+                                "community_id" => $community_id,
+                                "variable_amount_id" => $wc_settings->get_option("variable_amount_id"),
+                                "currency" => $wc_settings->get_option("currency"),
+                                "pay_using"=> "meeza/digital",
+                                "amount"=> $amount, 
+                            ));
+                            $billing_first_name = $order->get_billing_first_name();
+                            $url = $wc_settings->get_option("iframe_base_url") . "/api/v1/payments/pay/variable-amount";
+                            
+                            $resp = httpPost($url , $payload, $api_key, $debug);
+                            $resp = json_decode($resp, TRUE);
+                            generate_payment_modal($resp["data"]["iframe_url"], $resp["data"]["transaction_uuid"], $order->id, $community_id);
+                            add_post_meta($order->id, "xpay_transaction_id", $resp["data"]["transaction_uuid"]);
+                            return "<p id='xpay_message'> Your order is waiting XPAY payment you must see xpay popup now or <a data-toggle='modal' data-target='#xpay_modal'> click here </a></p>";
+                        }
                     }
 
                     return $str;
@@ -375,6 +398,10 @@ function wc_xpay_gateway_init() {
                     <label class="xpay-method" style="display: flex; align-items: center;">
                         <input type="radio" id="xpay_valu" name="xpay_payment_method" value="valu" style="margin-right: 5px;">
                         ' . __('valU', 'wc-gateway-xpay') . '
+                    </label>
+                    <label class="xpay-method" style="display: flex; align-items: center;">
+                        <input type="radio" id="xpay_wallet" name="xpay_payment_method" value="wallets" style="margin-right: 5px;">
+                        ' . __('Wallets', 'wc-gateway-xpay') . '
                     </label>
                 </div>
             </div>
