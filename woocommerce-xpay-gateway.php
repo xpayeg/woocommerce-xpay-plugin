@@ -469,8 +469,8 @@ function wc_xpay_gateway_init() {
                         <thead>
                             <tr style="background-color: #f1f1f1; color: #333; text-align: center; font-weight: bold;">
                                 <th>' . __('Duration (Months)', 'wc-gateway-xpay') . '</th>
-                                <th> '. __('Monthly Payment', 'wc-gateway-xpay') .' </th>
                                 <th>' . __('Total Interest', 'wc-gateway-xpay') . '</th>
+                                <th> '. __('Monthly Payment', 'wc-gateway-xpay') .' </th>
                                 <th>' . __('Select', 'wc-gateway-xpay') . '</th>
                             </tr>
                         </thead>
