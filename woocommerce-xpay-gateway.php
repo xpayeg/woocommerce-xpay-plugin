@@ -423,7 +423,6 @@ function wc_xpay_gateway_init() {
                 ),
             ));
         }
-
         public function payment_fields() {
             do_action('woocommerce_xpay_form_start', $this->id);
 
@@ -454,106 +453,95 @@ function wc_xpay_gateway_init() {
                 </div>
             </div>
             ';
-            // Placeholder for installment options table
+
             echo '
-                <div id="installment_options" style="display: grid; width: 100%; ">
-                    <!-- Label above the table -->
-
-
-                    <!-- Table below the label -->
+                <div id="installment_options" style="display: grid;  width: 100%; margin-top: 10px;">
                     <label>
-                        '. __("Installment Plans", "wc-gateway-xpay").' 
-                        <span class="required">*</span>
+                        ' . __("Installment Plans", "wc-gateway-xpay") . ' <span class="required">*</span>
                     </label>
-                    <table id="installment_table"  style="width: 100%; border-collapse: collapse; margin-top: 10px; background-color: #f9f9f9; border: 1px solid #ddd;">
-                        <thead>
-                            <tr style="background-color: #f1f1f1; color: #333; text-align: center; font-weight: bold;">
-                                <th>' . __('Duration (Months)', 'wc-gateway-xpay') . '</th>
-                                <th>' . __('Total Interest', 'wc-gateway-xpay') . '</th>
-                                <th> '. __('Monthly Payment', 'wc-gateway-xpay') .' </th>
-                                <th>' . __('Select', 'wc-gateway-xpay') . '</th>
-                            </tr>
-                        </thead>
-                        <tbody id="installment_plan_body">
-                            <!-- Data will be injected dynamically -->
-                        </tbody>
-                    </table>
-
+                    <div id="installment_card_container" style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                        <!-- Cards will be injected here dynamically -->
+                    </div>
                 </div>
-
             ';
+
             echo '<input type="hidden" name="xpay_selected_installment_plan" id="xpay_selected_installment_plan" value="">';
 
-
-            // JavaScript to handle dynamic behavior and show installment plans in a table
             ?>
             <script>
                 jQuery(document).ready(function($) {
-                $('#installment_options').hide();
-                // Show installment options when 'Installments' is selected
-                $('input[name="xpay_payment_method"]').change(function() {
-                    if ($(this).val() === 'installment') {
+                    $('#installment_options').hide();
 
-                        // Fetch installment plans dynamically
-                        $.ajax({
-                            url: '<?php echo admin_url("admin-ajax.php"); ?>',
-                            method: 'POST',
-                            data: {
-                                action: 'fetch_installment_plans',
-                                amount: '<?php echo WC()->cart->total; ?>', 
-                                url: '<?php echo $this->settings['iframe_base_url']  . "/api/v1/payments/prepare-amount/"; ?>', 
-                                api_key: '<?php echo $this->settings['payment_api_key']; ?>',
-                                selected_payment_method: 'installment', 
-                                community_id: '<?php echo $this->settings['community_id']; ?>',
-                            },
-                            success: function(response) {
-                                $('#installment_options').show();
-                                const data = JSON.parse(JSON.parse(response));  
-                                if (data && data.data && data.data.installment_fees) {
-                                    const cartAmount = parseFloat('<?php echo WC()->cart->total; ?>'); 
-                                    
-                                    const installmentPlans = data.data.installment_fees;
+                    $('input[name="xpay_payment_method"]').change(function() {
+                        if ($(this).val() === 'installment') {
+                            $.ajax({
+                                url: '<?php echo admin_url("admin-ajax.php"); ?>',
+                                method: 'POST',
+                                data: {
+                                    action: 'fetch_installment_plans',
+                                    amount: '<?php echo WC()->cart->total; ?>', 
+                                    url: '<?php echo $this->settings['iframe_base_url']  . "/api/v1/payments/prepare-amount/"; ?>', 
+                                    api_key: '<?php echo $this->settings['payment_api_key']; ?>',
+                                    selected_payment_method: 'installment', 
+                                    community_id: '<?php echo $this->settings['community_id']; ?>',
+                                },
+                                success: function(response) {
+                                    $('#installment_options').show();
+                                    const data = JSON.parse(JSON.parse(response));  
+                                    if (data && data.data && data.data.installment_fees) {
+                                        const cartAmount = parseFloat('<?php echo WC()->cart->total; ?>'); 
+                                        const installmentPlans = data.data.installment_fees;
+                                        $('#installment_card_container').empty();
 
-                                    $('#installment_plan_body').empty();
+                                        installmentPlans.forEach(function(plan) {
+                                            const totalAmount = cartAmount + parseFloat(plan.installment_fees + plan.const_fees);
+                                            const monthlyPayment = parseFloat((totalAmount / plan.period_duration).toFixed(2));
 
-                                    // Generate table rows
-                                    installmentPlans.forEach(function(plan) {
-                                        const totalAmount = cartAmount + parseFloat(plan.installment_fees) + parseFloat(plan.const_fees);
-                                        const row = `
-                                            <tr style = "text-align: center;">
-                                                <td style="padding: 8px; border: 1px solid #ddd;">${plan.period_duration} <?php echo __("Months", "wc-gateway-xpay"); ?></td>
-                                                <td style="padding: 8px; border: 1px solid #ddd;"><?php echo __("EGP", "wc-gateway-xpay"); ?> ${plan.interest_percentage}</td>
-                                                <td style="padding: 8px; border: 1px solid #ddd;"><?php echo __("EGP", "wc-gateway-xpay"); ?> ${parseFloat((totalAmount / plan.period_duration).toFixed(2))}</td>
-                                                <td style="padding: 8px; text-align: center; border: 1px solid #ddd;">
-                                                    <input type="radio" name="xpay_installment_plan" value="${plan.period_duration}" data-total-amount="${totalAmount.toFixed(2)}" style="margin: 0;">
-                                                </td>
-                                            </tr>
-                                        `;
-                                        $('#installment_plan_body').append(row);
-                                    });
-                                } else {
-                                    alert('<?php echo __("Failed to fetch installment plans. Please try again.", "wc-gateway-xpay"); ?>');
+                                            const card = `
+                                                <div class="installment-card" data-duration="${plan.period_duration}" data-total-amount="${totalAmount.toFixed(2)}"
+                                                    style="border: 2px solid #ddd; padding: 15px; border-radius: 8px; width: 200px; text-align: center; cursor: pointer; background: #f9f9f9; flex: 1">
+                                                    <strong>${plan.period_duration} <?php echo __("Months", "wc-gateway-xpay"); ?></strong>
+                                                    <p><?php echo __("Total Interest:", "wc-gateway-xpay"); ?> ${plan.interest_percentage}</p>
+                                                    <p><?php echo __("Monthly Payment:", "wc-gateway-xpay"); ?>  ${monthlyPayment} <?php echo __("EGP", "wc-gateway-xpay"); ?></p>
+                                                </div>
+                                            `;
+                                            $('#installment_card_container').append(card);
+                                        });
+                                    } else {
+                                        alert('<?php echo __("Failed to fetch installment plans. Please try again.", "wc-gateway-xpay"); ?>');
+                                    }
+                                },
+                                error: function(error) {
+                                    alert('<?php echo __("Failed to load installment plans. Please try again.", "wc-gateway-xpay"); ?>');
                                 }
-                            },
-                            error: function(error) {
-                                alert('<?php echo __("Failed to load installment plans. Please try again.", "wc-gateway-xpay"); ?>');
-                            }
-                        });
-                    } else {
-                        $('#installment_options').hide();
-                    }
-                });
+                            });
+                        } else {
+                            $('#installment_options').hide();
+                        }
+                    });
 
-                    // Handle the selection of an installment plan row
-                    $('#installment_plan_body').on('change', 'input[name="xpay_installment_plan"]', function() {
-                        const selectedDuration = $(this).val();
-                        const selectedTotalAmount = $(this).data('total-amount');
+                   // Handle installment card selection
+                    $('#installment_card_container').on('click', '.installment-card', function() {
+                        $('.installment-card').css({
+                            "border": "2px solid #ddd",
+                            "background-color": "#fff",
+                            "box-shadow": "none",
+                            "transform": "scale(1)",
+                            "opacity": "1"
+                        }); 
 
+                        $(this).css({
+                            "border": "2px solid #007cba",
+                            "background-color": "#e3f2fd",
+                            "box-shadow": "0px 4px 10px rgba(0, 124, 186, 0.3)",
+                            "transform": "scale(1.05)",
+                            "opacity": "1"
+                        }); 
+                        const selectedDuration = $(this).data('duration');
                         $('#xpay_selected_installment_plan').val(selectedDuration);
                     });
+
                 });
-
-
             </script>
             <?php
 
