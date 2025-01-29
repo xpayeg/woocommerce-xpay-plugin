@@ -136,6 +136,7 @@ function wc_xpay_gateway_init() {
                     $wc_settings = new WC_Gateway_Xpay;
                     $payment_method = isset($_REQUEST["xpay_payment"]) ? $_REQUEST["xpay_payment"] : '';
 
+                    $installment_period = isset($_REQUEST["xpay_installment_period"]) ? $_REQUEST["xpay_installment_period"] : '';           
                     // Check if the xpay_payment parameter exists
                     if ($payment_method) {
                         $api_key = $wc_settings->get_option("payment_api_key");
@@ -262,8 +263,39 @@ function wc_xpay_gateway_init() {
                             add_post_meta($order->id, "xpay_transaction_id", $resp["data"]["transaction_uuid"]);
                             return "<p id='xpay_message'> Your order is waiting XPAY payment you must see xpay popup now or <a data-toggle='modal' data-target='#xpay_modal'> click here </a></p>";
                         }
-                    }
+                        else if ($payment_method == "installment") {
+                            $installment_fees = null;
+                            foreach ($resp["data"]["installment_fees"] as $fee) {
+                                if ((int)$fee["period_duration"] === (int)$installment_period) {
+                                    $installment_fees = $fee["installment_fees"] + $fee["const_fees"];
+                                    break;
+                                }
+                            }
+                            
+                            $payload = json_encode(array (
+                                "billing_data" => array (
+                                    "name" => $name,
+                                    "email" => $email,
+                                    "phone_number" => $mobile,
+                                ),
+                                "community_id" => $community_id,
+                                "variable_amount_id" => $wc_settings->get_option("variable_amount_id"),
+                                "currency" => $wc_settings->get_option("currency"),
+                                "pay_using"=> "card",
+                                "amount"=> $order_amount + $installment_fees , 
+                                "installment_period" => $installment_period
+                            ));
+                            $billing_first_name = $order->get_billing_first_name();
+                            $url = $wc_settings->get_option("iframe_base_url") . "/api/v1/payments/pay/variable-amount";
+                            
+                            $resp = httpPost($url , $payload, $api_key, $debug);
+                            $resp = json_decode($resp, TRUE);
 
+                            generate_payment_modal($resp["data"]["iframe_url"], $resp["data"]["transaction_uuid"], $order->id, $community_id);
+                            add_post_meta($order->id, "xpay_transaction_id", $resp["data"]["transaction_uuid"]);
+                            return "<p id='xpay_message'> Your order is waiting XPAY payment you must see xpay popup now or <a data-toggle='modal' data-target='#xpay_modal'> click here </a></p>";
+                        }
+                    }
                     return $str;
                 }
             }
@@ -278,6 +310,18 @@ function wc_xpay_gateway_init() {
                             if (window.history.replaceState) {
                                 var url = new URL(window.location);
                                 url.searchParams.delete('xpay_payment');
+                                window.history.replaceState(null, null, url);
+                            }
+                        </script>
+                        <?php
+                    }
+                    // remove installment period parameter
+                    if (isset($_GET['xpay_installment_period'])) {
+                        ?>
+                        <script type="text/javascript">
+                            if (window.history.replaceState) {
+                                var url = new URL(window.location);
+                                url.searchParams.delete('xpay_installment_period');
                                 window.history.replaceState(null, null, url);
                             }
                         </script>
@@ -379,7 +423,6 @@ function wc_xpay_gateway_init() {
                 ),
             ));
         }
-
         public function payment_fields() {
             do_action('woocommerce_xpay_form_start', $this->id);
 
@@ -403,10 +446,105 @@ function wc_xpay_gateway_init() {
                         <input type="radio" id="xpay_wallet" name="xpay_payment_method" value="wallets" style="margin-right: 5px;">
                         ' . __('Wallets', 'wc-gateway-xpay') . '
                     </label>
+                    <label class="xpay-method" style="display: flex; align-items: center;">
+                        <input type="radio" id="xpay_installment" name="xpay_payment_method" value="installment" style="margin-right: 5px;">
+                        ' . __('Installments', 'wc-gateway-xpay') . '
+                    </label>
                 </div>
             </div>
             ';
-            
+
+            echo '
+                <div id="installment_options" style="display: grid;  width: 100%; margin-top: 10px;">
+                    <label>
+                        ' . __("Installment Plans", "wc-gateway-xpay") . ' <span class="required">*</span>
+                    </label>
+                    <div id="installment_card_container" style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                        <!-- Cards will be injected here dynamically -->
+                    </div>
+                </div>
+            ';
+
+            echo '<input type="hidden" name="xpay_selected_installment_plan" id="xpay_selected_installment_plan" value="">';
+
+            ?>
+            <script>
+                jQuery(document).ready(function($) {
+                    $('#installment_options').hide();
+
+                    $('input[name="xpay_payment_method"]').change(function() {
+                        if ($(this).val() === 'installment') {
+                            $.ajax({
+                                url: '<?php echo admin_url("admin-ajax.php"); ?>',
+                                method: 'POST',
+                                data: {
+                                    action: 'fetch_installment_plans',
+                                    amount: '<?php echo WC()->cart->total; ?>', 
+                                    url: '<?php echo $this->settings['iframe_base_url']  . "/api/v1/payments/prepare-amount/"; ?>', 
+                                    api_key: '<?php echo $this->settings['payment_api_key']; ?>',
+                                    selected_payment_method: 'installment', 
+                                    community_id: '<?php echo $this->settings['community_id']; ?>',
+                                },
+                                success: function(response) {
+                                    $('#installment_options').show();
+                                    const data = JSON.parse(JSON.parse(response));  
+                                    if (data && data.data && data.data.installment_fees) {
+                                        const cartAmount = parseFloat('<?php echo WC()->cart->total; ?>'); 
+                                        const installmentPlans = data.data.installment_fees;
+                                        $('#installment_card_container').empty();
+
+                                        installmentPlans.forEach(function(plan) {
+                                            const totalAmount = cartAmount + parseFloat(plan.installment_fees + plan.const_fees);
+                                            const monthlyPayment = parseFloat((totalAmount / plan.period_duration).toFixed(2));
+
+                                            const card = `
+                                                <div class="installment-card" data-duration="${plan.period_duration}" data-total-amount="${totalAmount.toFixed(2)}"
+                                                    style="border: 2px solid #ddd; padding: 15px; border-radius: 8px; width: 200px; text-align: center; cursor: pointer; background: #f9f9f9; flex: 1">
+                                                    <strong>${plan.period_duration} <?php echo __("Months", "wc-gateway-xpay"); ?></strong>
+                                                    <p><?php echo __("Total Interest:", "wc-gateway-xpay"); ?> ${plan.interest_percentage}</p>
+                                                    <p><?php echo __("Monthly Payment:", "wc-gateway-xpay"); ?>  ${monthlyPayment} <?php echo __("EGP", "wc-gateway-xpay"); ?></p>
+                                                </div>
+                                            `;
+                                            $('#installment_card_container').append(card);
+                                        });
+                                    } else {
+                                        alert('<?php echo __("Failed to fetch installment plans. Please try again.", "wc-gateway-xpay"); ?>');
+                                    }
+                                },
+                                error: function(error) {
+                                    alert('<?php echo __("Failed to load installment plans. Please try again.", "wc-gateway-xpay"); ?>');
+                                }
+                            });
+                        } else {
+                            $('#installment_options').hide();
+                        }
+                    });
+
+                   // Handle installment card selection
+                    $('#installment_card_container').on('click', '.installment-card', function() {
+                        $('.installment-card').css({
+                            "border": "2px solid #ddd",
+                            "background-color": "#fff",
+                            "box-shadow": "none",
+                            "transform": "scale(1)",
+                            "opacity": "1"
+                        }); 
+
+                        $(this).css({
+                            "border": "2px solid #007cba",
+                            "background-color": "#e3f2fd",
+                            "box-shadow": "0px 4px 10px rgba(0, 124, 186, 0.3)",
+                            "transform": "scale(1.05)",
+                            "opacity": "1"
+                        }); 
+                        const selectedDuration = $(this).data('duration');
+                        $('#xpay_selected_installment_plan').val(selectedDuration);
+                    });
+
+                });
+            </script>
+            <?php
+
             do_action('woocommerce_xpay_form_end', $this->id);
         }
 
@@ -452,9 +590,18 @@ function wc_xpay_gateway_init() {
             WC()->cart->empty_cart();
 
             // Return thank you redirect
+            $redirect_url = $this->get_return_url($order) . "&xpay_payment=" . $_REQUEST["xpay_payment_method"];
+
+            if (
+                isset($_REQUEST["xpay_selected_installment_plan"]) && !empty($_REQUEST["xpay_selected_installment_plan"] )
+            ) {
+                $redirect_url .= "&xpay_installment_period=" . $_REQUEST["xpay_selected_installment_plan"];
+            }
+
+
             return array(
                 'result' => 'success',
-                'redirect' => $this->get_return_url($order) . "&xpay_payment=" . $_REQUEST["xpay_payment_method"]
+                'redirect' => $redirect_url,
             );
         }
     }
