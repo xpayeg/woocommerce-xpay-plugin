@@ -426,44 +426,50 @@ function wc_xpay_gateway_init() {
         public function payment_fields() {
             do_action('woocommerce_xpay_form_start', $this->id);
 
-            echo '
-            <div class="form-row form-row-first">
-                <label for="xpay_payment_method">' . __('Payment Method', 'wc-gateway-xpay') . ' <span class="required">*</span></label>
-                <div class="xpay-payment-methods" style="text-align: left; direction: ltr;">
-                    <label class="xpay-method" style="display: flex; align-items: center;">
-                        <input type="radio" id="xpay_card" name="xpay_payment_method" value="card" checked style="margin-right: 5px;">
-                        ' . __('Card', 'wc-gateway-xpay') . '
-                    </label>
-                    <label class="xpay-method" style="display: flex; align-items: center;">
-                        <input type="radio" id="xpay_fawry" name="xpay_payment_method" value="fawry" style="margin-right: 5px;">
-                        ' . __('Fawry', 'wc-gateway-xpay') . '
-                    </label>
-                    <label class="xpay-method" style="display: flex; align-items: center;">
-                        <input type="radio" id="xpay_valu" name="xpay_payment_method" value="valu" style="margin-right: 5px;">
-                        ' . __('valU', 'wc-gateway-xpay') . '
-                    </label>
-                    <label class="xpay-method" style="display: flex; align-items: center;">
-                        <input type="radio" id="xpay_wallet" name="xpay_payment_method" value="wallets" style="margin-right: 5px;">
-                        ' . __('Wallets', 'wc-gateway-xpay') . '
-                    </label>
-                    <label class="xpay-method" style="display: flex; align-items: center;">
-                        <input type="radio" id="xpay_installment" name="xpay_payment_method" value="installment" style="margin-right: 5px;">
-                        ' . __('Installments', 'wc-gateway-xpay') . '
-                    </label>
-                </div>
-            </div>
-            ';
+            // Fetch available payment methods from API
+            $community_id = $this->settings['community_id'];
+            $api_url =$this->settings['iframe_base_url'] . "/api/communities/preferences/?community_id=" . $community_id;
+            $response = wp_remote_get($api_url);
+            $payment_methods = [];
+            if (!is_wp_error($response)) {
+                $body = wp_remote_retrieve_body($response);
+                $data = json_decode($body, true);
+                if (isset($data['data']['payment_methods'])) {
+                    $payment_methods = $data['data']['payment_methods'];
+                }
+            }
 
-            echo '
-                <div id="installment_options" style="display: grid;  width: 100%; margin-top: 10px;">
-                    <label>
-                        ' . __("Installment Plans", "wc-gateway-xpay") . ' <span class="required">*</span>
-                    </label>
-                    <div id="installment_card_container" style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
-                        <!-- Cards will be injected here dynamically -->
-                    </div>
-                </div>
-            ';
+            $method_labels = [
+                'CARD' => __('Card', 'wc-gateway-xpay'),
+                'FAWRY' => __('Fawry', 'wc-gateway-xpay'),
+                'VALU' => __('valU', 'wc-gateway-xpay'),
+                'MEEZA/DIGITAL' => __('Wallets', 'wc-gateway-xpay'),
+                'Installment' => __('Installment', 'wc-gateway-xpay'),
+            ];
+
+            if ($data['data']['supports_installments']) {
+                $payment_methods['installment'] = 'Installment';
+            }
+
+            echo '<div class="form-row form-row-first">
+                    <label for="xpay_payment_method">' . __('Payment Method', 'wc-gateway-xpay') . ' <span class="required">*</span></label>
+                    <div class="xpay-payment-methods" style="text-align: left; direction: ltr;">';
+
+            foreach ($payment_methods as $method) {
+                if (isset($method_labels[$method])  ) {
+                    echo '<label class="xpay-method" style="display: flex; align-items: center;">
+                            <input type="radio" name="xpay_payment_method" value="' . strtolower($method) . '" style="margin-right: 5px;" ' . ($method === 'CARD' ? 'checked' : '') . '>
+                            ' . $method_labels[$method] . '
+                        </label>';
+                }
+            }
+
+            echo '</div></div>';
+
+            echo '<div id="installment_options" style="display: grid; width: 100%; margin-top: 10px;">
+                    <label>' . __('Installment Plans', 'wc-gateway-xpay') . ' <span class="required">*</span></label>
+                    <div id="installment_card_container" style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px;"></div>
+                </div>';
 
             echo '<input type="hidden" name="xpay_selected_installment_plan" id="xpay_selected_installment_plan" value="">';
 
@@ -473,16 +479,16 @@ function wc_xpay_gateway_init() {
                     $('#installment_options').hide();
 
                     $('input[name="xpay_payment_method"]').change(function() {
-                        if ($(this).val() === 'installment') {
+                        if ($(this).val() === 'installment') { 
                             $.ajax({
                                 url: '<?php echo admin_url("admin-ajax.php"); ?>',
                                 method: 'POST',
                                 data: {
                                     action: 'fetch_installment_plans',
-                                    amount: '<?php echo WC()->cart->total; ?>', 
-                                    url: '<?php echo $this->settings['iframe_base_url']  . "/api/v1/payments/prepare-amount/"; ?>', 
+                                    amount: '<?php echo WC()->cart->total; ?>',
+                                    url: '<?php echo $this->settings['iframe_base_url'] . "/api/v1/payments/prepare-amount/"; ?>',
                                     api_key: '<?php echo $this->settings['payment_api_key']; ?>',
-                                    selected_payment_method: 'installment', 
+                                    selected_payment_method: 'installment',
                                     community_id: '<?php echo $this->settings['community_id']; ?>',
                                 },
                                 success: function(response) {
@@ -500,19 +506,19 @@ function wc_xpay_gateway_init() {
                                             const card = `
                                                 <div class="installment-card" data-duration="${plan.period_duration}" data-total-amount="${totalAmount.toFixed(2)}"
                                                     style="border: 2px solid #ddd; padding: 15px; border-radius: 8px; width: 200px; text-align: center; cursor: pointer; background: #f9f9f9; flex: 1">
-                                                    <strong>${plan.period_duration} <?php echo __("Months", "wc-gateway-xpay"); ?></strong>
-                                                    <p><?php echo __("Total Interest:", "wc-gateway-xpay"); ?> ${plan.interest_percentage}</p>
-                                                    <p><?php echo __("Monthly Payment:", "wc-gateway-xpay"); ?>  ${monthlyPayment} <?php echo __("EGP", "wc-gateway-xpay"); ?></p>
+                                                    <strong>${plan.period_duration} <?php echo __('Months', 'wc-gateway-xpay'); ?></strong>
+                                                    <p><?php echo __('Total Interest:', 'wc-gateway-xpay'); ?> ${plan.interest_percentage}</p>
+                                                    <p><?php echo __('Monthly Payment:', 'wc-gateway-xpay'); ?>  ${monthlyPayment} <?php echo __('EGP', 'wc-gateway-xpay'); ?></p>
                                                 </div>
                                             `;
                                             $('#installment_card_container').append(card);
                                         });
                                     } else {
-                                        alert('<?php echo __("Failed to fetch installment plans. Please try again.", "wc-gateway-xpay"); ?>');
+                                        alert('<?php echo __('Failed to fetch installment plans. Please try again.', 'wc-gateway-xpay'); ?>');
                                     }
                                 },
                                 error: function(error) {
-                                    alert('<?php echo __("Failed to load installment plans. Please try again.", "wc-gateway-xpay"); ?>');
+                                    alert('<?php echo __('Failed to load installment plans. Please try again.', 'wc-gateway-xpay'); ?>');
                                 }
                             });
                         } else {
@@ -520,7 +526,6 @@ function wc_xpay_gateway_init() {
                         }
                     });
 
-                   // Handle installment card selection
                     $('#installment_card_container').on('click', '.installment-card', function() {
                         $('.installment-card').css({
                             "border": "2px solid #ddd",
@@ -540,11 +545,9 @@ function wc_xpay_gateway_init() {
                         const selectedDuration = $(this).data('duration');
                         $('#xpay_selected_installment_plan').val(selectedDuration);
                     });
-
                 });
             </script>
             <?php
-
             do_action('woocommerce_xpay_form_end', $this->id);
         }
 
