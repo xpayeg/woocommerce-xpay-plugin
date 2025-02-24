@@ -19,6 +19,7 @@ if ( ! in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins',
 }
 
 require( 'utils.php' );
+require( 'actions.php' );
 
 /**
  * Add the gateway to WC Available Gateways
@@ -329,6 +330,9 @@ function wc_xpay_gateway_init() {
                     }
                 }
             }
+
+            // Hook into the payment fields display
+            add_action('woocommerce_credit_card_form_start', array($this, 'payment_fields'));
         }
 
         /**
@@ -431,12 +435,17 @@ function wc_xpay_gateway_init() {
             $api_url =$this->settings['iframe_base_url'] . "/api/communities/preferences/?community_id=" . $community_id;
             $response = wp_remote_get($api_url);
             $payment_methods = [];
+            $allow_promo_code = false; // Default: Hide promo code section
             if (!is_wp_error($response)) {
                 $body = wp_remote_retrieve_body($response);
                 $data = json_decode($body, true);
                 if (isset($data['data']['payment_methods'])) {
                     $payment_methods = $data['data']['payment_methods'];
                 }
+                 // Check if promo codes are allowed
+            if (isset($data['data']['allow_promo_code']) && $data['data']['allow_promo_code'] === true) {
+                $allow_promo_code = true;
+            }
             }
 
             $method_labels = [
@@ -463,8 +472,18 @@ function wc_xpay_gateway_init() {
                         </label>';
                 }
             }
-
-            echo '</div></div>';
+            // ===== Conditionally Display Promo Code Section =====
+            if ($allow_promo_code) {
+                echo '<div id="xpay_promo_code_wrapper" class="form-row form-row-wide xpay-promo-code-container">
+                        <label for="xpay_promo_code">' . esc_html__('Promo Code', 'wc-gateway-xpay') . '</label>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input type="text" id="xpay_promo_code" name="xpay_promo_code" class="input-text xpay-promo-code-input" placeholder="' . esc_attr__('Enter promo code', 'wc-gateway-xpay') . '">
+                            <button type="button" id="apply_promo_code" class="button xpay-apply-button">' . esc_html__('Apply', 'wc-gateway-xpay') . '</button>
+                        </div>
+                        <div id="promo_code_message"></div>
+                    </div>';
+            }
+            // ===== End Conditional Promo Code Section =====  
 
             echo '<div id="installment_options" style="display: grid; width: 100%; margin-top: 10px;">
                     <label>' . __('Installment Plans', 'wc-gateway-xpay') . ' <span class="required">*</span></label>
@@ -672,6 +691,49 @@ if (!function_exists("generate_payment_modal")) {
         </div>
         <?php
     }
+}
+
+// Enqueue styles
+add_action('wp_enqueue_scripts', 'enqueue_xpay_styles');
+function enqueue_xpay_styles() {
+    wp_enqueue_style('xpay-styles', plugin_dir_url(__FILE__) . 'assets/css/style.css');
+}
+
+// Enqueue scripts
+add_action('wp_enqueue_scripts', 'enqueue_xpay_scripts');
+function enqueue_xpay_scripts() {
+    // Get WooCommerce settings
+    $xpay_gateway = new WC_Gateway_Xpay();
+
+    // Enqueue the script
+    wp_enqueue_script(
+        'xpay-scripts',
+        plugins_url('assets/js/script.js', __FILE__),
+        array('jquery'),
+        null,
+        true
+    );
+
+    // Shared data for AJAX
+    $sharedData = array(
+        'ajax_url' => admin_url('admin-ajax.php'),
+        'nonce'    => wp_create_nonce('validate-promo-code'),
+    );
+
+    // Fetch settings from the payment gateway
+    $promoCodeRequestData = array(
+        'iframe_base_url'   => $xpay_gateway->get_option('iframe_base_url'),
+        'community_id'      => $xpay_gateway->get_option('community_id'),
+        'amount'            => WC()->cart ? WC()->cart->total : 0,
+        'currency'          => get_option('woocommerce_currency'), // WooCommerce setting
+        'variable_amount_id'=> $xpay_gateway->get_option('variable_amount_id')
+    );
+
+    // Localize script with data
+    wp_localize_script('xpay-scripts', 'xpayJSData', array(
+        'ajax' => $sharedData,
+        'promoCodeRequestData' => $promoCodeRequestData
+    ));
 }
 
 ?>
