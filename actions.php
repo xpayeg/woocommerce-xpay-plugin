@@ -98,4 +98,32 @@ function handle_validate_xpay_promo_code() {
     wp_die();
 }
 
+add_action('wp_ajax_store_promocode_id', 'store_promocode_id');
+add_action('wp_ajax_nopriv_store_promocode_id', 'store_promocode_id');
+function store_promocode_id() {
+    // Check the nonce for security
+    check_ajax_referer('validate-promo-code', 'security');
+
+    // Get the promocode_id and discount_amount from the AJAX request
+    $promocode_id = sanitize_text_field($_POST['promocode_id']);
+    WC()->session->set('promocode_id', $promocode_id);
+
+    // Send a success response
+    wp_send_json_success(array('message' => 'Promocode ID and discount amount stored successfully'));
+}
+
+add_action('woocommerce_checkout_order_processed', 'store_xpay_promocode_after_payment', 10, 3);
+function store_xpay_promocode_after_payment($order_id, $posted_data, $order) {
+    $promocode_id = WC()->session->get('promocode_id');
+    error_log("Debug: Storing promocode_id in order meta: $promocode_id");
+
+    if ($promocode_id) {
+        update_post_meta($order_id, '_xpay_promocode_id', $promocode_id);
+
+        WC()->session->__unset('promocode_id');
+    } else {
+        error_log("Debug: No promocode_id found in session.");
+    }
+}
+
 ?>

@@ -41,7 +41,39 @@ jQuery(document).ready(function ($) {
                     if (response.success) {
                         $('#promo_code_message').html('<p style="color: green;">Promo Code Applied: ' + 
                             response.data.value + ' ' + response.data.currency + '</p>');
+
+                        // Ensure cart_total is defined and properly formatted
+                        if (xpayJSData.cart_total) {
+                            var cartTotal = parseFloat(xpayJSData.cart_total.replace(/[^0-9.-]+/g,""));
+                            var newTotal = cartTotal - parseFloat(response.data.value);
+                            console.log('New total:', newTotal.toFixed(2));
+                            $('#order_total').text(newTotal.toFixed(2) + ' ' + response.data.currency);
+                        } else {
+                            console.error('cart_total is not defined or improperly formatted');
+                        }
+
                         $('body').trigger('update_checkout');
+
+                        // Send promocode_id to the server to store in WooCommerce session
+                        $.ajax({
+                            type: 'POST',
+                            url: xpayJSData.ajax.ajax_url,
+                            data: {
+                                action: 'store_promocode_id',
+                                security: xpayJSData.ajax.nonce,
+                                promocode_id: response.data.promocode_id
+                            },
+                            success: function (response) {
+                                console.log('%c Promocode ID stored in session:', 'color: green;', response);
+                            },
+                            error: function (xhr, status, error) {
+                                console.error('Error storing promocode ID:', {
+                                    status: status,
+                                    error: error,
+                                    response: xhr.responseText
+                                });
+                            }
+                        });
                     } else {
                         $('#promo_code_message').html('<p style="color: red;">' + 
                             (response.data ? response.data.message : 'Invalid promo code') + '</p>');

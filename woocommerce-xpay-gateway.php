@@ -137,7 +137,11 @@ function wc_xpay_gateway_init() {
                     $wc_settings = new WC_Gateway_Xpay;
                     $payment_method = isset($_REQUEST["xpay_payment"]) ? $_REQUEST["xpay_payment"] : '';
 
-                    $installment_period = isset($_REQUEST["xpay_installment_period"]) ? $_REQUEST["xpay_installment_period"] : '';           
+                    $installment_period = isset($_REQUEST["xpay_installment_period"]) ? $_REQUEST["xpay_installment_period"] : '';   
+                    $order_id = $order->get_id();
+                    $promocode_id = get_post_meta($order_id, '_xpay_promocode_id', true);
+                    error_log("Debug: Retrieved promocode_id on Thank You page: " . $promocode_id);
+
                     // Check if the xpay_payment parameter exists
                     if ($payment_method) {
                         $api_key = $wc_settings->get_option("payment_api_key");
@@ -165,7 +169,8 @@ function wc_xpay_gateway_init() {
                                 "variable_amount_id" => $wc_settings->get_option("variable_amount_id"),
                                 "currency" => $wc_settings->get_option("currency"),
                                 "pay_using"=> "card",
-                                "amount"=> $amount, 
+                                "amount"=> $amount,
+                                "promocode_id" => $promocode_id
                             ));
                             $billing_first_name = $order->get_billing_first_name();
                             $url = $wc_settings->get_option("iframe_base_url") . "/api/v1/payments/pay/variable-amount";
@@ -186,7 +191,8 @@ function wc_xpay_gateway_init() {
                                 "community_id" => $community_id,
                                 "variable_amount_id" => $wc_settings->get_option("variable_amount_id"),
                                 "pay_using"=> "kiosk",
-                                "amount"=> $amount, 
+                                "amount"=> $amount,
+                                "promocode_id" => $promocode_id 
                             ));
                             $billing_first_name = $order->get_billing_first_name();
                             $url = $wc_settings->get_option("iframe_base_url") . "/api/v1/payments/pay/variable-amount";
@@ -207,7 +213,8 @@ function wc_xpay_gateway_init() {
                                 "variable_amount_id" => $wc_settings->get_option("variable_amount_id"),
                                 "currency" => $wc_settings->get_option("currency"),
                                 "pay_using"=> "fawry",
-                                "amount"=> $amount, 
+                                "amount"=> $amount,
+                                "promocode_id" => $promocode_id 
                             ));
                             $billing_first_name = $order->get_billing_first_name();
                             $url = $wc_settings->get_option("iframe_base_url") . "/api/v1/payments/pay/variable-amount";
@@ -231,6 +238,7 @@ function wc_xpay_gateway_init() {
                                 "currency" => $wc_settings->get_option("currency"),
                                 "pay_using"=> "valu",
                                 "amount"=> $amount, 
+                                "promocode_id" => $promocode_id
                             ));
                             $billing_first_name = $order->get_billing_first_name();
                             $url = $wc_settings->get_option("iframe_base_url") . "/api/v1/payments/pay/variable-amount";
@@ -254,6 +262,7 @@ function wc_xpay_gateway_init() {
                                 "currency" => $wc_settings->get_option("currency"),
                                 "pay_using"=> "meeza/digital",
                                 "amount"=> $amount, 
+                                "promocode_id" => $promocode_id
                             ));
                             $billing_first_name = $order->get_billing_first_name();
                             $url = $wc_settings->get_option("iframe_base_url") . "/api/v1/payments/pay/variable-amount";
@@ -728,11 +737,12 @@ function enqueue_xpay_scripts() {
         'currency'          => get_option('woocommerce_currency'), // WooCommerce setting
         'variable_amount_id'=> $xpay_gateway->get_option('variable_amount_id')
     );
-
     // Localize script with data
     wp_localize_script('xpay-scripts', 'xpayJSData', array(
         'ajax' => $sharedData,
-        'promoCodeRequestData' => $promoCodeRequestData
+        'promoCodeRequestData' => $promoCodeRequestData,
+        'cart_total' =>$cart_total,
+
     ));
 }
 
