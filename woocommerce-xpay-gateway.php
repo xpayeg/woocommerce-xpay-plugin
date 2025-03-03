@@ -149,18 +149,32 @@ function wc_xpay_gateway_init() {
                         $community_id = $wc_settings->get_option("community_id");
                         $subtotal_amount = $order->get_subtotal();
                         
-                        // Prepare amount
-                        $url = $wc_settings->get_option("iframe_base_url") . "/api/v1/payments/prepare-amount/";
-                        $payload = json_encode(array(
-                            "community_id" => $community_id,
-                            "amount" => $subtotal_amount,
-                            "selected_payment_method" => $payment_method
-                        ));
-                        error_log("Debug: payload for prepare-amount: ". $payload);
-                        $resp = httpPost($url, $payload, $api_key, $debug);
-                        $resp = json_decode($resp, TRUE);
-                        error_log("Debug: prepare-amount response: ". json_encode($resp));
-                        $total_amount = $resp["data"]["total_amount"];
+                        // Check if payment method matches stored method
+                        $stored_payment_method = strtolower(get_post_meta($order->get_id(), '_xpay_payment_method', true));
+                        
+                        if ($stored_payment_method === $payment_method) {
+                            $total_amount = get_post_meta($order->get_id(), '_xpay_total_amount', true);
+                            $xpay_fees_amount = get_post_meta($order->get_id(), '_xpay_fees_amount', true);
+                            $community_fees = get_post_meta($order->get_id(), '_xpay_community_fees', true);
+                            error_log("Debug: Stored total amount: ". $total_amount);
+                            error_log("Debug: Stored xpay_fees_amount: ". $xpay_fees_amount);
+                            error_log("Debug: Stored community_fees: ". $community_fees);
+                        }
+                         else {
+                            // Prepare amount
+                            $url = $wc_settings->get_option("iframe_base_url") . "/api/v1/payments/prepare-amount/";
+                            $payload = json_encode(array(
+                                "community_id" => $community_id,
+                                "amount" => $subtotal_amount,
+                                "selected_payment_method" => $payment_method
+                            ));
+                            error_log("Debug: payload for prepare-amount: ". $payload);
+                            $resp = httpPost($url, $payload, $api_key, $debug);
+                            $resp = json_decode($resp, TRUE);
+                            error_log("Debug: prepare-amount response: ". json_encode($resp));
+                            $total_amount = $resp["data"]["total_amount"];
+                        }
+                        
                         $original_amount = $order->get_subtotal();
                         
                         // Base payload for all payment methods
@@ -192,7 +206,7 @@ function wc_xpay_gateway_init() {
                             'wallets' => array('pay_using' => 'meeza/digital'),
                             'installment' => array(
                                 'pay_using' => 'card',
-                                'amount' => $order_amount + $installment_fees,
+                                'amount' => $total_amount + $installment_fees,
                                 'installment_period' => $installment_period
                             )
                         );

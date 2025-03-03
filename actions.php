@@ -192,6 +192,13 @@ function xpay_store_prepared_amount_dynamically() {
             $currency = $resp["data"]["total_amount_currency"];
         }
 
+        // Store values in WooCommerce session instead of order meta
+        WC()->session->set('xpay_payment_method', $selected_method_upper);
+        WC()->session->set('xpay_total_amount', $new_total_amount);
+        WC()->session->set('xpay_fees_amount', $xpay_fees);
+        WC()->session->set('xpay_community_fees', $community_fees);
+        WC()->session->set('xpay_currency', $currency);
+
         wp_send_json_success(array(
             'total_amount' => floatval($new_total_amount),
             'xpay_fees' => floatval($xpay_fees),
@@ -200,6 +207,33 @@ function xpay_store_prepared_amount_dynamically() {
         ));
     } else {
         wp_send_json_error(array('message' => 'Failed to retrieve total amount from XPAY.'));
+    }
+}
+
+// Add this new function to store session values in order meta
+add_action('woocommerce_checkout_order_processed', 'store_xpay_payment_details', 10, 3);
+function store_xpay_payment_details($order_id, $posted_data, $order) {
+    // Get values from session
+    $payment_method = WC()->session->get('xpay_payment_method');
+    $total_amount = WC()->session->get('xpay_total_amount');
+    $xpay_fees = WC()->session->get('xpay_fees_amount');
+    $community_fees = WC()->session->get('xpay_community_fees');
+    $currency = WC()->session->get('xpay_currency');
+
+    // Store in order meta
+    if ($payment_method) {
+        update_post_meta($order_id, '_xpay_payment_method', $payment_method);
+        update_post_meta($order_id, '_xpay_total_amount', $total_amount);
+        update_post_meta($order_id, '_xpay_fees_amount', $xpay_fees);
+        update_post_meta($order_id, '_xpay_community_fees', $community_fees);
+        update_post_meta($order_id, '_xpay_currency', $currency);
+
+        // Clear session
+        WC()->session->__unset('xpay_payment_method');
+        WC()->session->__unset('xpay_total_amount');
+        WC()->session->__unset('xpay_fees_amount');
+        WC()->session->__unset('xpay_community_fees');
+        WC()->session->__unset('xpay_currency');
     }
 }
 

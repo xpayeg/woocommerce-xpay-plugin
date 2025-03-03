@@ -9,11 +9,14 @@ jQuery(document).ready(function ($) {
         console.log(xpayJSData.prepareAmountData)
         
         // Remove existing fee rows if any
-        $('.xpay-fee, .merchant-fee').remove();
+        $('.xpay-fee, .merchant-fee, .discount').remove();
         
         // Create fee rows
+        const paymentMethodName = $('input[name="xpay_payment_method"]:checked').val();
+        const formattedMethodName = paymentMethodName.charAt(0).toUpperCase() + paymentMethodName.slice(1);
+        
         const xpayFeeRow = `<tr class="xpay-fee">
-            <th style="font-family: Arial, sans-serif; font-size: 14px;">XPay Fee</th>
+            <th style="font-family: Arial, sans-serif; font-size: 14px;">XPay Fee for ${formattedMethodName}</th>
             <td><span class="woocommerce-Price-amount">${xpayJSData.prepareAmountData.xpay_fees_amount || '0.00'} ${currency}</span></td>
         </tr>`;
         
@@ -26,9 +29,9 @@ jQuery(document).ready(function ($) {
         $('.order-total').before(xpayFeeRow + merchantFeeRow);
 
         // Update the order total
-        // $('.order-total .woocommerce-Price-amount bdi').text(`${totalAmount.toFixed(2)} ${currency}`);
-        // $('.order-total .woocommerce-Price-amount amount').text(totalAmount.toFixed(2));
-        // $('input[name="order_total"]').val(totalAmount.toFixed(2));
+        $('.order-total .woocommerce-Price-amount bdi').text(`${totalAmount.toFixed(2)} ${currency}`);
+        $('.order-total .woocommerce-Price-amount amount').text(totalAmount.toFixed(2));
+        $('input[name="order_total"]').val(totalAmount.toFixed(2));
     }
 
     // Function to update prepared amount dynamically based on selected payment method
@@ -66,6 +69,19 @@ jQuery(document).ready(function ($) {
         console.log("Payment method changed");
         var selectedMethod = $(this).val();
         console.log("Selected method:", selectedMethod);
+        
+        // Reset promo code input and message
+        $('#xpay_promo_code').val('');
+        $('#promo_code_message').empty();
+        
+        // // Remove any existing discount
+        // Remove any existing discount and reset total to original amount
+        $('.xpay-fee, .merchant-fee .discount').remove();
+        $('.order-total th').text('Total');
+        $('.order-total .woocommerce-Price-amount bdi').text(`${xpayJSData.prepareAmountData.total_amount} ${xpayJSData.prepareAmountData.currency}`);
+        $('.order-total .woocommerce-Price-amount amount').text(xpayJSData.prepareAmountData.total_amount);
+        $('input[name="order_total"]').val(xpayJSData.prepareAmountData.total_amount);
+
         updatePreparedAmount(selectedMethod);
     });
 
@@ -110,7 +126,7 @@ jQuery(document).ready(function ($) {
             data: data,
             beforeSend: () => toggleButtonState(true),
             success: function(response) {
-                console.log('AJAX response received:', response);
+                console.log('Promocode response received:', response);
                 toggleButtonState(false);
 
                 if (response.success) {
@@ -191,12 +207,12 @@ jQuery(document).ready(function ($) {
         const message = `Promo Code Applied! New total: ${formattedAmount} ${response.data.currency}`;
         displayMessage(message, true);
 
-        const totalAmount = parseFloat(xpayJSData.promoCodeRequestData.amount);
+        const totalAmount = parseFloat(xpayJSData.prepareAmountData.total_amount );
         const totalAfterDiscount = parseFloat(response.data.value);
         const currency = response.data.currency
         
         updateOrderSummary(totalAmount, totalAfterDiscount, currency);
-        $(document.body).trigger('update_checkout');
+        // $(document.body).trigger('update_checkout');
         
         storePromocode(response.data.promocode_id, response.data.value);
     }
@@ -221,7 +237,8 @@ jQuery(document).ready(function ($) {
     
     // 8. Event Listeners
     $(document.body).on('updated_checkout', function() {
-        updatePreparedAmount('card');
+        const selectedMethod = $('input[name="xpay_payment_method"]:checked').val() || 'card';
+        updatePreparedAmount(selectedMethod);
     });
     $(document.body).on('updated_checkout', initPromoCodeFunctionality);
 });
