@@ -177,7 +177,7 @@ jQuery(document).ready(function ($) {
 
     // 5.  Order Discount Function
     function OrderDiscount(totalAmount, totalAfterDiscount, currency) {
-        $('.xpay-fee, .merchant-fee, .discount').remove();        
+        $('.discount').remove();        
         if (totalAmount && totalAfterDiscount) {
             const discountAmount = totalAmount - totalAfterDiscount;            
             if (discountAmount > 0) {
