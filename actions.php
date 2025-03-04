@@ -198,6 +198,7 @@ function xpay_store_prepared_amount_dynamically() {
         WC()->session->set('xpay_fees_amount', $xpay_fees);
         WC()->session->set('xpay_community_fees', $community_fees);
         WC()->session->set('xpay_currency', $currency);
+        WC()->session->set('xpay_installment_fees', $resp["data"]["installment_fees"]);
 
         wp_send_json_success(array(
             'total_amount' => floatval($new_total_amount),
@@ -227,6 +228,7 @@ function store_xpay_payment_details($order_id, $posted_data, $order) {
         update_post_meta($order_id, '_xpay_fees_amount', $xpay_fees);
         update_post_meta($order_id, '_xpay_community_fees', $community_fees);
         update_post_meta($order_id, '_xpay_currency', $currency);
+        update_post_meta($order_id, '_xpay_installment_fees', $xpay_installment_fees);
 
         // Clear session
         WC()->session->__unset('xpay_payment_method');
@@ -234,6 +236,7 @@ function store_xpay_payment_details($order_id, $posted_data, $order) {
         WC()->session->__unset('xpay_fees_amount');
         WC()->session->__unset('xpay_community_fees');
         WC()->session->__unset('xpay_currency');
+        WC()->session->__unset('xpay_installment_fees');
     }
 }
 

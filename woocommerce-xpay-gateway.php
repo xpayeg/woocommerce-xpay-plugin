@@ -140,6 +140,8 @@ function wc_xpay_gateway_init() {
                     $order_id = $order->get_id();
                     $promocode_id = get_post_meta($order_id, '_xpay_promocode_id', true);
                     $discount_amount = get_post_meta($order_id, '_xpay_discount_amount', true);
+                    $installment_fees = get_post_meta($order_id, '_xpay_installment_fees', true);
+            
                     error_log("Debug: Retrieved promocode_id on Thank You page: " . $promocode_id);
 
                     // Check if the xpay_payment parameter exists
@@ -160,7 +162,7 @@ function wc_xpay_gateway_init() {
                             error_log("Debug: Stored xpay_fees_amount: ". $xpay_fees_amount);
                             error_log("Debug: Stored community_fees: ". $community_fees);
                         }
-                         else {
+                        else {
                             // Prepare amount
                             $url = $wc_settings->get_option("iframe_base_url") . "/api/v1/payments/prepare-amount/";
                             $payload = json_encode(array(
@@ -171,6 +173,7 @@ function wc_xpay_gateway_init() {
                             error_log("Debug: payload for prepare-amount: ". $payload);
                             $resp = httpPost($url, $payload, $api_key, $debug);
                             $resp = json_decode($resp, TRUE);
+                            $installment_fees = $resp["data"]["installment_fees"];
                             error_log("Debug: prepare-amount response: ". json_encode($resp));
                             $total_amount = $resp["data"]["total_amount"];
                         }
@@ -196,6 +199,17 @@ function wc_xpay_gateway_init() {
                             $base_payload["promocode_id"] = $promocode_id;
                             $base_payload["amount"] = $discount_amount;
                         }
+                        
+                        $current_installment_fees = 0;
+                        // If installment, calculate fees first
+                        if ($payment_method == "installment") {
+                            foreach ($installment_fees as $fee) {
+                                if ((int)$fee["period_duration"] === (int)$installment_period) {
+                                    $current_installment_fees = $fee["installment_fees"] + $fee["const_fees"];
+                                    break;
+                                }
+                            }
+                        }
 
                         // Payment method specific configurations
                         $payment_config = array(
@@ -206,21 +220,12 @@ function wc_xpay_gateway_init() {
                             'wallets' => array('pay_using' => 'meeza/digital'),
                             'installment' => array(
                                 'pay_using' => 'card',
-                                'amount' => $total_amount + $installment_fees,
+                                'amount' => $total_amount + $current_installment_fees,
                                 'installment_period' => $installment_period
                             )
                         );
 
-                        // If installment, calculate fees first
-                        if ($payment_method == "installment") {
-                            $installment_fees = null;
-                            foreach ($resp["data"]["installment_fees"] as $fee) {
-                                if ((int)$fee["period_duration"] === (int)$installment_period) {
-                                    $installment_fees = $fee["installment_fees"] + $fee["const_fees"];
-                                    break;
-                                }
-                            }
-                        }
+                      
 
                         // Merge base payload with payment specific config
                         $payload = array_merge($base_payload, $payment_config[$payment_method]);
