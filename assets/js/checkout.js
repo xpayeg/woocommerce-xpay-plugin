@@ -1,3 +1,23 @@
+/**
+ * XPay WooCommerce Checkout Handler
+ * 
+ * This file handles all checkout-related functionality for the XPay payment gateway:
+ * - Payment method selection and fee calculations
+ * - Promo code validation and application
+ * - Order total updates and display
+ * - Session storage for payment data
+ * 
+ * Dependencies:
+ * - jQuery
+ * - WooCommerce checkout
+ * - XPay API integration
+ * 
+ * Global objects used:
+ * - xpayJSData: Contains configuration and payment data
+ * - xpayJSData.prepareAmountData: Payment amounts and currency info
+ * - xpayJSData.promoCodeRequestData: Promo code validation configuration
+ */
+
 jQuery(document).ready(function ($) {
     // 1. Core Fee Display Functions
     function displayFees() {
@@ -64,26 +84,28 @@ jQuery(document).ready(function ($) {
         });
     }
 
-    // Detect payment method change (using event delegation)
-    $(document).on('change', '.xpay-payment-radio', function () {
-        console.log("Payment method changed");
-        var selectedMethod = $(this).val();
-        console.log("Selected method:", selectedMethod);
-        
-        // Reset promo code input and message
-        $('#xpay_promo_code').val('');
-        $('#promo_code_message').empty();
-        
-        // // Remove any existing discount
-        // Remove any existing discount and reset total to original amount
-        $('.xpay-fee, .merchant-fee .discount').remove();
-        $('.order-total th').text('Total');
-        $('.order-total .woocommerce-Price-amount bdi').text(`${xpayJSData.prepareAmountData.total_amount} ${xpayJSData.prepareAmountData.currency}`);
-        $('.order-total .woocommerce-Price-amount amount').text(xpayJSData.prepareAmountData.total_amount);
-        $('input[name="order_total"]').val(xpayJSData.prepareAmountData.total_amount);
-
-        updatePreparedAmount(selectedMethod);
-    });
+    function handlePaymentMethodChange(selectedMethod) {
+            console.log("Payment method changed");
+            console.log("Selected method:", selectedMethod);
+            
+            // Reset promo code input and message
+            $('#xpay_promo_code').val('');
+            $('#promo_code_message').empty();
+            
+            // Remove any existing discount and reset total to original amount
+            $('.xpay-fee, .merchant-fee .discount').remove();
+            $('.order-total th').text('Total');
+            $('.order-total .woocommerce-Price-amount bdi').text(`${xpayJSData.prepareAmountData.total_amount} ${xpayJSData.prepareAmountData.currency}`);
+            $('.order-total .woocommerce-Price-amount amount').text(xpayJSData.prepareAmountData.total_amount);
+            $('input[name="order_total"]').val(xpayJSData.prepareAmountData.total_amount);
+    
+            updatePreparedAmount(selectedMethod);
+        }
+    
+        // Detect payment method change (using event delegation)
+        $(document).on('change', '.xpay-payment-radio', function () {
+            handlePaymentMethodChange($(this).val());
+        });
 
     // 3. UI Helper Functions
     function displayMessage(message, isSuccess = false) {
@@ -146,34 +168,17 @@ jQuery(document).ready(function ($) {
 
     // 5. Order Summary Functions
     function updateOrderSummary(totalAmount, totalAfterDiscount, currency) {
-        // Remove existing fee and discount rows if any
-        $('.xpay-fee, .merchant-fee, .discount').remove();
-        
-        // Only proceed if we have valid amounts
+        $('.xpay-fee, .merchant-fee, .discount').remove();        
         if (totalAmount && totalAfterDiscount) {
-            const discountAmount = totalAmount - totalAfterDiscount;
-            
-            // Only show summary if there's a valid discount
+            const discountAmount = totalAmount - totalAfterDiscount;            
             if (discountAmount > 0) {
-                // Add rows...
-                const xpayFeeRow = `<tr class="xpay-fee">
-                    <th style="font-family: 'Linotte', Arial, sans-serif; font-size: 14px;">XPay Fee</th>
-                    <td><span class="woocommerce-Price-amount">${xpayJSData.prepareAmountData.xpay_fees_amount || '0.00'} ${currency}</span></td>
-                    </tr>`;
-            
-                 const merchantFeeRow = `<tr class="merchant-fee">
-                    <th style="font-family: 'Linotte', Arial, sans-serif; font-size: 14px;">Merchant Fee</th>
-                    <td><span class="woocommerce-Price-amount">${xpayJSData.prepareAmountData.community_fees_amount || '0.00'} ${currency}</span></td>
-                    </tr>`;
-                
-                // Add discount row
                 const discountRow = `<tr class="discount">
                     <th>Discount </th>
                     <td><span class="woocommerce-Price-amount" style="color: red;">-${discountAmount.toFixed(2)} ${currency}</span></td>
                 </tr>`;
                 
                 // Insert all rows before the order total
-                $('.order-total').before(xpayFeeRow + merchantFeeRow + discountRow);
+                $('.order-total').before(discountRow);
                 
                 // Update WooCommerce total elements and rename the total label
                 $('.order-total th').text('Total after discount');
