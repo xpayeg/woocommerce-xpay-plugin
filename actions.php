@@ -57,7 +57,15 @@ function handle_validate_xpay_promo_code() {
     
     // Handle error response
     if (!isset($body['status']['code']) || $body['status']['code'] !== 200) {
-        $error_message = isset($body['status']['message']) ? $body['status']['message'] : 'Invalid promo code';
+        $error_message = 'Invalid promo code';
+        if (isset($body['status']['errors']) && is_array($body['status']['errors'])) {
+            foreach ($body['status']['errors'] as $error) {
+                if (isset($error['name'])) {
+                    $error_message = $error['name'];
+                    break;
+                }
+            }
+        }
         wp_send_json_error(array('message' => $error_message));
         return;
     }
