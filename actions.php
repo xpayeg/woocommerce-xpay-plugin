@@ -54,15 +54,20 @@ function handle_validate_xpay_promo_code() {
     // Make the API request to validate the promo code
     $response = httpPost($api_url, $request_body, $api_key, $debug);
     $body = json_decode($response, true);
-
+    
     // Handle error response
-    if (!isset($body['data'])) {
-        $error_message = isset($body['message']) ? $body['message'] : 'Invalid promo code';
+    if (!isset($body['status']['code']) || $body['status']['code'] !== 200) {
+        $error_message = isset($body['status']['message']) ? $body['status']['message'] : 'Invalid promo code';
         wp_send_json_error(array('message' => $error_message));
         return;
     }
 
-    wp_send_json_success($body['data']);
+    // Check if response has data
+    if (isset($body['data'])) {
+        wp_send_json_success($body['data']);
+    } else {
+        wp_send_json_error(array('message' => 'Invalid response format'));
+    }    
 }
 
 add_action('wp_ajax_store_promocode_id', 'store_promocode_id');
