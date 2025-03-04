@@ -3,7 +3,6 @@
 // Register AJAX handlers for logged-in and guest users
 add_action('wp_ajax_validate_xpay_promo_code', 'handle_validate_xpay_promo_code');
 add_action('wp_ajax_nopriv_validate_xpay_promo_code', 'handle_validate_xpay_promo_code');
-
 function handle_validate_xpay_promo_code() {
     // Verify the security nonce to ensure the request is legitimate
     check_ajax_referer('validate-promo-code', 'security');
@@ -11,6 +10,7 @@ function handle_validate_xpay_promo_code() {
     // Get the gateway settings
     $gateway = new WC_Gateway_Xpay();
     $api_key = $gateway->get_option('payment_api_key');
+    $debug = $gateway->get_option("debug");
 
     // Sanitize and retrieve the promo code, community ID, and API URL from the AJAX request
     $name = sanitize_text_field($_POST['name']);
@@ -52,50 +52,17 @@ function handle_validate_xpay_promo_code() {
     ));
 
     // Make the API request to validate the promo code
-    $response = wp_remote_post($api_url, array(
-        'headers' => array(
-            'Content-Type' => 'application/json',
-            'x-api-key' => $api_key // Add the API key header
-        ),
-        'body' => $request_body,
-        'timeout' => 30
-    ));
+    $response = httpPost($api_url, $request_body, $api_key, $debug);
+    $body = json_decode($response, true);
 
-    // Check if there was an error with the API request
-    if (is_wp_error($response)) {
-        error_log('XPAY Promo Code Error: ' . $response->get_error_message());
-        wp_send_json_error(array('message' => 'Failed to validate promo code'));
-        return;
-    }
-
-    // Retrieve the status code and body of the API response
-    $status_code = wp_remote_retrieve_response_code($response);
-    $body = json_decode(wp_remote_retrieve_body($response), true);
-
-    // Log the response for debugging if debug mode is enabled
-    if ($gateway->get_option('debug') === 'yes') {
-        error_log('XPAY Promo Code Response: ' . print_r([
-            'status' => $status_code,
-            'body' => $body,
-            'headers' => wp_remote_retrieve_headers($response)
-        ], true));
-    }
-
-    // Handle non-200 response status
-    if ($status_code !== 200) {
+    // Handle error response
+    if (!isset($body['data'])) {
         $error_message = isset($body['message']) ? $body['message'] : 'Invalid promo code';
         wp_send_json_error(array('message' => $error_message));
         return;
     }
 
-    // Ensure the response body contains the expected data
-    if (isset($body['data'])) {
-        wp_send_json_success($body['data']);
-    } else {
-        wp_send_json_error(array('message' => 'Invalid response format'));
-    }
-
-    wp_die();
+    wp_send_json_success($body['data']);
 }
 
 add_action('wp_ajax_store_promocode_id', 'store_promocode_id');
@@ -111,17 +78,18 @@ function store_promocode_id() {
     WC()->session->set('promocode_id', $promocode_id);
     WC()->session->set('discount_amount', $discount_amount);
     
-    // Send a success response
-    wp_send_json_success(array('message' => 'Promocode ID and discount amount stored successfully'));
+    // Send a success response with promocode details
+    wp_send_json_success(array(
+        'promocode_id' => $promocode_id,
+        'discount_amount' => $discount_amount
+    ));
 }
 
-add_action('woocommerce_checkout_order_processed', 'store_xpay_promocode_after_payment', 10, 3);
-function store_xpay_promocode_after_payment($order_id, $posted_data, $order) {
+add_action('woocommerce_checkout_order_processed', 'store_promocode_resp_data_in_order_meta', 10, 3);
+function store_promocode_resp_data_in_order_meta($order_id, $posted_data, $order) {
     $promocode_id = WC()->session->get('promocode_id');
     $discount_amount = WC()->session->get('discount_amount');
-    error_log("Debug: Storing promocode_id in order meta: $promocode_id");
-    error_log("Debug: Storing discount_amount in order meta: $discount_amount");
-
+    // store the values in order meta ro be used in thank you
     if ($promocode_id && $discount_amount) {
         update_post_meta($order_id, '_xpay_promocode_id', $promocode_id);
         update_post_meta($order_id, '_xpay_discount_amount', $discount_amount);
@@ -130,7 +98,7 @@ function store_xpay_promocode_after_payment($order_id, $posted_data, $order) {
         WC()->session->__unset('promocode_id');
         WC()->session->__unset('discount_amount');
     } else {
-        error_log("Debug: Missing promocode_id or discount_amount in session.");
+        jsprint("Debug: Missing promocode_id or discount_amount in session.", false);
     }
 }
 
@@ -162,21 +130,14 @@ function xpay_store_prepared_amount_dynamically() {
         "amount" => $order_amount,
         "selected_payment_method" => $selected_method
     ));
-    error_log("Debug: Sending request to XPAY API: $url");
-    error_log("Debug: Payload: $payload");
-
+   
     // Call XPAY API
     $response = httpPost($url, $payload, $api_key, false);
     $resp = json_decode($response, TRUE);
 
-    // Debug log the full response
-    error_log("Debug: Full XPAY API Response: " . print_r($resp, true));
-
     // Check if XPAY returned a valid amount
     if (isset($resp["data"])) {
         $selected_method_upper = strtoupper($selected_method);
-        error_log("Debug: Selected method: " . $selected_method_upper);
-
         // Get the fees based on selected payment method
         if (isset($resp["data"][$selected_method_upper])) {
             $method_data = $resp["data"][$selected_method_upper];
@@ -207,13 +168,13 @@ function xpay_store_prepared_amount_dynamically() {
             'currency' => $currency
         ));
     } else {
-        wp_send_json_error(array('message' => 'Failed to retrieve total amount from XPAY.'));
+        wp_send_json_error(array('message' => 'Failed to retrieve prepare amount data from Backend.'));
     }
 }
 
 // Add this new function to store session values in order meta
-add_action('woocommerce_checkout_order_processed', 'store_xpay_payment_details', 10, 3);
-function store_xpay_payment_details($order_id, $posted_data, $order) {
+add_action('woocommerce_checkout_order_processed', 'store_prepare_amount_resp_in_order_meta', 10, 3);
+function store_prepare_amount_resp_in_order_meta($order_id, $posted_data, $order) {
     // Get values from session
     $payment_method = WC()->session->get('xpay_payment_method');
     $total_amount = WC()->session->get('xpay_total_amount');

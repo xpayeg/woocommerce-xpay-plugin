@@ -210,7 +210,7 @@ jQuery(document).ready(function ($) {
                 discount_amount: discountAmount
             }
         }).then(
-            response => jsprint('Promocode ID stored in session: ' + JSON.stringify(response), false),
+            response => jsprint('Promocode ID and Discount Amount stored  session: ' + JSON.stringify(response), false),
             (xhr, status, error) => jsprint('Error storing promocode ID: ' + JSON.stringify({ status, error, response: xhr.responseText }), false)
         );
     }
