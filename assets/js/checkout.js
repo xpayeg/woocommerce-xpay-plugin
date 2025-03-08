@@ -74,8 +74,9 @@ jQuery(document).ready(function ($) {
         
         // Add XPay fee row if exists
         if (xpay_fees_amount > 0) {
+            const formattedMethodName = paymentMethodName.charAt(0).toUpperCase() + paymentMethodName.slice(1).toLowerCase();
             const xpayFeeRow = `<tr class="xpay-fee">
-                <th style="font-family: Arial, sans-serif; font-size: 14px;">XPay Fee for ${paymentMethodName}</th>
+                <th style="font-family: Arial, sans-serif; font-size: 14px;">${formattedMethodName} Fee</th>
                 <td><span class="woocommerce-Price-amount">${xpay_fees_amount} ${total_amount_currency}</span></td>
             </tr>`;
             $('.order-total').before(xpayFeeRow);
@@ -133,70 +134,12 @@ jQuery(document).ready(function ($) {
             }
         });
     }
-    // 3. UI Helper Functions
-    function displayMessage(message, isSuccess = false) {
-        const color = isSuccess ? 'green' : 'red';
-        $('#promo_code_message').html(`<p style="color: ${color};">${message}</p>`);
-    }
 
-    // Toggle button state
-    function toggleButtonState(isLoading = false) {
-        $('#apply_promo_code').prop('disabled', isLoading)
-            .text(isLoading ? 'Validating...' : 'Apply');
-    }
-
-    // Prepare promo code validation data
-    function getPromoCodeData(promoCode) {
-        return {
-            action: 'validate_xpay_promo_code',
-            security: xpayJSData.ajax.nonce,
-            url: xpayJSData.promoCodeRequestData.iframe_base_url + "/api/promocodes/validate/",
-            name: promoCode,
-            community_id: xpayJSData.promoCodeRequestData.community_id,
-            amount: xpayJSData.prepareAmountData.total_amount,
-            currency: xpayJSData.promoCodeRequestData.currency,
-            phone_number: $('input[name="billing_phone"]').val(),
-            payment_for: 'API_PAYMENT',
-            variable_amount_id: xpayJSData.promoCodeRequestData.variable_amount_id
-        };
-    }
-
-    // 4. Promo Code Core Functions
-    function validatePromoCode(promoCode) {
-        const data = getPromoCodeData(promoCode);
-        const originalTotal = parseFloat(xpayJSData.prepareAmountData.total_amount);
-        const currency = xpayJSData.promoCodeRequestData.currency;
-
-        $.ajax({
-            type: 'POST',
-            url: xpayJSData.ajax.ajax_url,
-            dataType: 'json',
-            data: data,
-            beforeSend: () => toggleButtonState(true),
-            success: function(response) {
-                jsprint('Promocode response received: ' + JSON.stringify(response), false);
-                toggleButtonState(false);
-
-                if (response.success) {
-                    handleSuccessfulPromo(response);
-                } else {
-                    displayMessage(response.data ? response.data.message : 'Invalid promo code');
-                    // Only remove discount row and reset total, keep original total label
-                    $('.discount').remove();
-                    $('.order-total th').text('Total'); // Reset to original text
-                    $('.order-total .woocommerce-Price-amount bdi').text(`${originalTotal.toFixed(2)} ${currency}`);
-                    $('.order-total .woocommerce-Price-amount amount').text(originalTotal.toFixed(2));
-                    $('input[name="order_total"]').val(originalTotal.toFixed(2));
-                }
-            }
-        });
-    }
-
-    // 5.  Order Discount Function
     function OrderDiscount(totalAmount, totalAfterDiscount, currency) {
         $('.discount').remove();        
         if (totalAmount && totalAfterDiscount) {
-            const discountAmount = totalAmount - totalAfterDiscount;            
+            const discountAmount = totalAmount - totalAfterDiscount;  
+            jsprint('Discount amount: '+ discountAmount, false);          
             if (discountAmount > 0) {
                 const discountRow = `<tr class="discount">
                     <th>Discount </th>
@@ -214,6 +157,68 @@ jQuery(document).ready(function ($) {
             }
         }
     }
+    
+    function displayMessage(message, isSuccess = false) {
+        const color = isSuccess ? 'green' : 'red';
+        $('#promo_code_message').html(`<p style="color: ${color};">${message}</p>`);
+    }
+
+    function toggleButtonState(isLoading = false) {
+        $('#apply_promo_code').prop('disabled', isLoading)
+            .text(isLoading ? 'Validating...' : 'Apply');
+    }
+
+    // Prepare promo code validation data
+    function getPromoCodeData(promoCode) {
+        const selectedMethod = $('input[name="xpay_payment_method"]:checked').val();
+        const methodName = selectedMethod ? selectedMethod.toUpperCase() : 'CARD';
+        const currentAmount = paymentMethodsData[methodName]?.total_amount || paymentMethodsData.total_amount;
+
+        return {
+            action: 'validate_xpay_promo_code',
+            security: xpayJSData.ajax.nonce,
+            url: xpayJSData.promoCodeRequestData.iframe_base_url + "/api/promocodes/validate/",
+            name: promoCode,
+            community_id: xpayJSData.promoCodeRequestData.community_id,
+            amount: currentAmount,
+            currency: xpayJSData.promoCodeRequestData.currency,
+            phone_number: $('input[name="billing_phone"]').val(),
+            payment_for: 'API_PAYMENT',
+            variable_amount_id: xpayJSData.promoCodeRequestData.variable_amount_id
+        };
+    }
+
+    // 4. Promo Code Core Functions
+    function validatePromoCode(promoCode) {
+        const data = getPromoCodeData(promoCode);
+        const selectedMethod = $('input[name="xpay_payment_method"]:checked').val();
+        const methodName = selectedMethod ? selectedMethod.toUpperCase() : 'CARD';
+        const originalTotal = paymentMethodsData[methodName]?.total_amount || paymentMethodsData.total_amount;
+        const currency = xpayJSData.promoCodeRequestData.currency;
+
+        $.ajax({
+            type: 'POST',
+            url: xpayJSData.ajax.ajax_url,
+            dataType: 'json',
+            data: data,
+            beforeSend: () => toggleButtonState(true),
+            success: function(response) {
+                jsprint('Promocode response received: ' + JSON.stringify(response), false);
+                toggleButtonState(false);
+
+                if (response.success) {
+                    handleSuccessfulPromo(response);
+                } else {
+                    displayMessage(response.data ? response.data.message : 'Invalid promo code');
+                    $('.discount').remove();
+                    $('.order-total th').text('Total');
+                    $('.order-total .woocommerce-Price-amount bdi').text(`${originalTotal.toFixed(2)} ${currency}`);
+                    $('.order-total .woocommerce-Price-amount amount').text(originalTotal.toFixed(2));
+                    $('input[name="order_total"]').val(originalTotal.toFixed(2));
+                }
+            }
+        });
+    }
 
     // Store promocode in session
     function storePromocode(promocodeId, discountAmount) {
@@ -227,7 +232,7 @@ jQuery(document).ready(function ($) {
                 discount_amount: discountAmount
             }
         }).then(
-            response => jsprint('Promocode ID and Discount Amount stored  session: ' + JSON.stringify(response), false),
+            response => jsprint('Promocode ID and Discount Amount stored in session: ' + JSON.stringify(response), false),
             (xhr, status, error) => jsprint('Error storing promocode ID: ' + JSON.stringify({ status, error, response: xhr.responseText }), false)
         );
     }
@@ -238,45 +243,63 @@ jQuery(document).ready(function ($) {
         const message = `Promo Code Applied! New total: ${formattedAmount} ${response.data.currency}`;
         displayMessage(message, true);
 
-        const totalAmount = parseFloat(paymentMethodsData.total_amount);
+        // Get the current selected payment method's total
+        const selectedMethod = $('input[name="xpay_payment_method"]:checked').val();
+        const methodName = selectedMethod ? selectedMethod.toUpperCase() : 'CARD';
+        const totalAmount = paymentMethodsData[methodName]?.total_amount || paymentMethodsData.total_amount;
         const totalAfterDiscount = parseFloat(response.data.value);
-        const currency = response.data.currency
+        const currency = response.data.currency;
         
         OrderDiscount(totalAmount, totalAfterDiscount, currency);
-        // $(document.body).trigger('update_checkout');
-        
         storePromocode(response.data.promocode_id, response.data.value);
     }
 
     // 6. Initialization Functions
-    function initPromoCodeFunctionality() {
-        $('#apply_promo_code').on('click', function(e) {
-            e.preventDefault();
-            const promoCode = $('#xpay_promo_code').val();
+        function initPromoCodeFunctionality() {
+            // Initially hide promo code input section
+            $('.promo-code-input-section').hide();
             
-            if (!promoCode) {
-                displayMessage('Please enter a promo code');
-                return;
-            }
-            
-            validatePromoCode(promoCode);
-        });
-    }
-
-    // 7. Initialize Components
-    initPromoCodeFunctionality();
+            // Handle "Have Xpay Promo Code?" click
+            $('.promo-code-toggle').on('click', function(e) {
+                e.preventDefault();
+                $('.promo-code-input-section').slideToggle();
+                $(this).toggleClass('active');
+            });
     
-    // Detect payment method change (using event delegation)
-    $(document).on('change', '.xpay-payment-radio', function () {
-        const selectedPaymentMethod = $('input[name="xpay_payment_method"]:checked').val();
-        jsprint('Payment method changed to: '+ selectedPaymentMethod, false,"#00FFFF");
-        OrderBreakdown(selectedPaymentMethod);
-    });
+            $('#apply_promo_code').on('click', function(e) {
+                e.preventDefault();
+                const promoCode = $('#xpay_promo_code').val();
+                
+                if (!promoCode) {
+                    displayMessage('Please enter a promo code');
+                    return;
+                }
+                
+                validatePromoCode(promoCode);
+            });
+        }
+        
+        // Detect payment method change
+        $(document).on('change', '.xpay-payment-radio', function () {
+            const selectedPaymentMethod = $('input[name="xpay_payment_method"]:checked').val();
+            jsprint('Payment method changed to: '+ selectedPaymentMethod, false,"#00FFFF");
+            
+            // Reset promo code section
+            $('#xpay_promo_code').val('');
+            $('#promo_code_message').empty();
+            $('.discount').remove();
+            $('.order-total th').text('Total');
+            $('#promo_code_input_container').hide();
+            $('#show_promo_code').text('Have Xpay Promo Code?');
+            
+            OrderBreakdown(selectedPaymentMethod);
+        });
 
     $(document.body).on('updated_checkout', function() {
         getPaymentMethodsFees();      
     });
 
+     initPromoCodeFunctionality();
     // Initialize promo code functionality once
     $(document.body).on('updated_checkout', initPromoCodeFunctionality);
 });
