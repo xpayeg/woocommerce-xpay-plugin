@@ -19,60 +19,91 @@
  */
 
 jQuery(document).ready(function ($) {
+    
+    let paymentMethodsData = {
+        total_amount: 0,
+        xpay_fees: 0,
+        community_fees: 0,
+        currency: 'EGP'
+    };
+
     // Add jsprint function
-    function jsprint(message, isAlert = false) {
+    function jsprint(message, isAlert = false, color = '#2196F3') {
         if (isAlert) {
             alert(message);
         } else {
-            console.log('%cXPay Debug:', 'color: #2196F3; font-weight: bold;', message);
+            console.log('%cXPay Debug:', `color: ${color}; font-weight: bold;`, message);
         }
     }
 
-    // 1. Core Fee Display Functions
-    function OrderBreakdown() {
-        const { total_amount, xpay_fees, community_fees, currency } = xpayJSData.prepareAmountData;
-        jsprint('OrderBreakdown data: ' + JSON.stringify(xpayJSData.prepareAmountData), false);
+    function OrderBreakdown(selectedMethod = null) {
+        let paymentMethodName = selectedMethod || $('input[name="xpay_payment_method"]:checked').val();
+        paymentMethodName = paymentMethodName ? paymentMethodName.toUpperCase() : null;
+        
+        jsprint('Selected payment method for OrderBreakdown is : ' + paymentMethodName, false, "#00FF00");
+        
+        if (!paymentMethodName || !paymentMethodsData) {
+            jsprint('No payment method selected or data available for, returning', false, '#00FF00');
+            return;
+        }
+
+        const methodData = paymentMethodsData[paymentMethodName];
+
+        if (!methodData || !methodData.total_amount) {
+            jsprint('No data found for payment method: ' + paymentMethodName, false,"#00FF00");
+            // Clear all fee rows and reset total to initial checkout amount
+            $('.xpay-fee, .merchant-fee, .discount').remove();
+            $('.order-total th').text('Total');
+            $('.order-total .woocommerce-Price-amount bdi').text(`${parseFloat(xpayJSData.initialData.subtotal_amount).toFixed(2)} ${xpayJSData.initialData.currency}`);
+            $('.order-total .woocommerce-Price-amount amount').text(parseFloat(xpayJSData.initialData.total_amount).toFixed(2));
+            $('input[name="order_total"]').val(parseFloat(xpayJSData.initialData.total_amount).toFixed(2));
+            return;
+        }
+
+        const { 
+            total_amount, 
+            xpay_fees_amount, 
+            community_fees_amount,
+            total_amount_currency 
+        } = methodData;
+
+        jsprint(paymentMethodName +' - Fees: ' + JSON.stringify(methodData), false,"#00FF00");
                 
-        // Remove existing fee rows if any
+        // Rest of the function remains the same
         $('.xpay-fee, .merchant-fee, .discount').remove();
         
-        // Get Payment Method name
-        const paymentMethodName = $('input[name="xpay_payment_method"]:checked').val();
-        const formattedMethodName = paymentMethodName.charAt(0).toUpperCase() + paymentMethodName.slice(1);
-        
-        // Add XPay fee row
-        if (xpay_fees) {
+        // Add XPay fee row if exists
+        if (xpay_fees_amount > 0) {
             const xpayFeeRow = `<tr class="xpay-fee">
-                <th style="font-family: Arial, sans-serif; font-size: 14px;">XPay Fee for ${formattedMethodName}</th>
-                <td><span class="woocommerce-Price-amount">${xpay_fees} ${currency}</span></td>
+                <th style="font-family: Arial, sans-serif; font-size: 14px;">XPay Fee for ${paymentMethodName}</th>
+                <td><span class="woocommerce-Price-amount">${xpay_fees_amount} ${total_amount_currency}</span></td>
             </tr>`;
             $('.order-total').before(xpayFeeRow);
         }
         
         // Add merchant fee row
-        if (community_fees) {
+        if (community_fees_amount) {
             const merchantFeeRow = `<tr class="merchant-fee">
                 <th style="font-family: Arial, sans-serif; font-size: 14px;">Merchant Fee</th>
-                <td><span class="woocommerce-Price-amount">${community_fees} ${currency}</span></td>
+                <td><span class="woocommerce-Price-amount">${community_fees_amount} ${total_amount_currency}</span></td>
             </tr>`;
             $('.order-total').before(merchantFeeRow);
         }
         
         // Update total
         $('.order-total th').text('Total');
-        $('.order-total .woocommerce-Price-amount bdi').text(`${parseFloat(total_amount).toFixed(2)} ${currency}`);
+        $('.order-total .woocommerce-Price-amount bdi').text(`${parseFloat(total_amount).toFixed(2)} ${total_amount_currency}`);
         $('.order-total .woocommerce-Price-amount amount').text(parseFloat(total_amount).toFixed(2));
         $('input[name="order_total"]').val(parseFloat(total_amount).toFixed(2));
     }
 
-    // Update the success handler in updatePreparedAmount
-    function updatePreparedAmount(paymentMethod) {
+    function getPaymentMethodsFees(paymentMethod = null) {
         $.ajax({
             url: xpayJSData.ajax.ajax_url,
             method: 'POST',
-            dataType: 'json',  // Add this line to automatically parse JSON
+            dataType: 'json',
             data: {
-                action: 'xpay_store_prepared_amount_dynamically',
+                action: 'xpay_get_payment_methods_fees',
                 payment_method: paymentMethod
             },
             beforeSend: function () {
@@ -80,9 +111,18 @@ jQuery(document).ready(function ($) {
             },
             success: function (response) {
                 if (response.success) {
-                    jsprint(`Prepare amount Response data for ${paymentMethod}: ${JSON.stringify(response.data)}`, false);
-                    xpayJSData.prepareAmountData = response.data;
-                    OrderBreakdown();
+                    // Add root level data as CARD payment method
+                    const responseData = {
+                        ...response.data,
+                        CARD: {
+                            total_amount: response.data.total_amount,
+                            xpay_fees_amount: response.data.xpay_fees_amount,
+                            community_fees_amount: response.data.community_fees_amount,
+                            total_amount_currency: response.data.total_amount_currency
+                        }
+                    };
+                    paymentMethodsData = responseData;
+                    OrderBreakdown(selectedMethod='card');
                 } else {
                     jsprint("Failed to update amount: " + response.message, false);
                 }
@@ -93,29 +133,6 @@ jQuery(document).ready(function ($) {
             }
         });
     }
-
-    function handlePaymentMethodChange(selectedMethod) {
-            jsprint("Selected method: " + selectedMethod, false);
-            
-            // Reset promo code input and message
-            $('#xpay_promo_code').val('');
-            $('#promo_code_message').empty();
-            
-            // Remove any existing discount and reset total to original amount
-            $('.xpay-fee, .merchant-fee .discount').remove();
-            $('.order-total th').text('Total');
-            $('.order-total .woocommerce-Price-amount bdi').text(`${xpayJSData.prepareAmountData.total_amount} ${xpayJSData.prepareAmountData.currency}`);
-            $('.order-total .woocommerce-Price-amount amount').text(xpayJSData.prepareAmountData.total_amount);
-            $('input[name="order_total"]').val(xpayJSData.prepareAmountData.total_amount);
-    
-            updatePreparedAmount(selectedMethod);
-        }
-    
-        // Detect payment method change (using event delegation)
-        $(document).on('change', '.xpay-payment-radio', function () {
-            handlePaymentMethodChange($(this).val());
-        });
-
     // 3. UI Helper Functions
     function displayMessage(message, isSuccess = false) {
         const color = isSuccess ? 'green' : 'red';
@@ -221,7 +238,7 @@ jQuery(document).ready(function ($) {
         const message = `Promo Code Applied! New total: ${formattedAmount} ${response.data.currency}`;
         displayMessage(message, true);
 
-        const totalAmount = parseFloat(xpayJSData.prepareAmountData.total_amount );
+        const totalAmount = parseFloat(paymentMethodsData.total_amount);
         const totalAfterDiscount = parseFloat(response.data.value);
         const currency = response.data.currency
         
@@ -249,10 +266,17 @@ jQuery(document).ready(function ($) {
     // 7. Initialize Components
     initPromoCodeFunctionality();
     
-    // 8. Event Listeners
-    $(document.body).on('updated_checkout', function() {
-        const selectedMethod = $('input[name="xpay_payment_method"]:checked').val() || 'card';
-        updatePreparedAmount(selectedMethod);
+    // Detect payment method change (using event delegation)
+    $(document).on('change', '.xpay-payment-radio', function () {
+        const selectedPaymentMethod = $('input[name="xpay_payment_method"]:checked').val();
+        jsprint('Payment method changed to: '+ selectedPaymentMethod, false,"#00FFFF");
+        OrderBreakdown(selectedPaymentMethod);
     });
+
+    $(document.body).on('updated_checkout', function() {
+        getPaymentMethodsFees();      
+    });
+
+    // Initialize promo code functionality once
     $(document.body).on('updated_checkout', initPromoCodeFunctionality);
 });

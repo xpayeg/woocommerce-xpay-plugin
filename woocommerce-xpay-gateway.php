@@ -141,7 +141,9 @@ function wc_xpay_gateway_init() {
                     $promocode_id = get_post_meta($order_id, '_xpay_promocode_id', true);
                     $discount_amount = get_post_meta($order_id, '_xpay_discount_amount', true);
                     $installment_fees = get_post_meta($order_id, '_xpay_installment_fees', true);
-            
+                    error_log("Debug: Type of installment_fees from post_meta: " . gettype($installment_fees));
+                    error_log("Debug: installment_fees: ". json_encode($installment_fees));
+
                     error_log("Debug: Retrieved promocode_id on Thank You page: " . $promocode_id);
 
                     // Check if the xpay_payment parameter exists
@@ -149,34 +151,19 @@ function wc_xpay_gateway_init() {
                         $api_key = $wc_settings->get_option("payment_api_key");
                         $debug = $wc_settings->get_option("debug");
                         $community_id = $wc_settings->get_option("community_id");
-                        $subtotal_amount = $order->get_subtotal();
-                        
-                        // Check if payment method matches stored method
-                        $stored_payment_method = strtolower(get_post_meta($order->get_id(), '_xpay_payment_method', true));
-                        
-                        if ($stored_payment_method === $payment_method) {
-                            $total_amount = get_post_meta($order->get_id(), '_xpay_total_amount', true);
-                            $xpay_fees_amount = get_post_meta($order->get_id(), '_xpay_fees_amount', true);
-                            $community_fees = get_post_meta($order->get_id(), '_xpay_community_fees', true);
-                            error_log("Debug: Stored total amount: ". $total_amount);
-                            error_log("Debug: Stored xpay_fees_amount: ". $xpay_fees_amount);
-                            error_log("Debug: Stored community_fees: ". $community_fees);
-                        }
-                        else {
-                            // Prepare amount
-                            $url = $wc_settings->get_option("iframe_base_url") . "/api/v1/payments/prepare-amount/";
-                            $payload = json_encode(array(
-                                "community_id" => $community_id,
-                                "amount" => $subtotal_amount,
-                                "selected_payment_method" => $payment_method
-                            ));
-                            error_log("Debug: payload for prepare-amount: ". $payload);
-                            $resp = httpPost($url, $payload, $api_key, $debug);
-                            $resp = json_decode($resp, TRUE);
-                            $installment_fees = $resp["data"]["installment_fees"];
-                            error_log("Debug: prepare-amount response: ". json_encode($resp));
-                            $total_amount = $resp["data"]["total_amount"];
-                        }
+                        $subtotal_amount = $order->get_subtotal();                        
+                    
+                        // Prepare amount
+                        $url = $wc_settings->get_option("iframe_base_url") . "/api/v1/payments/prepare-amount/";
+                        $payload = json_encode(array(
+                            "community_id" => $community_id,
+                            "amount" => $subtotal_amount,
+                            "selected_payment_method" => $payment_method
+                        ));
+                        $resp = httpPost($url, $payload, $api_key, $debug);
+                        $resp = json_decode($resp, TRUE);
+                        $installment_fees = $resp["data"]["installment_fees"];
+                        $total_amount = $resp["data"]["total_amount"];
                         
                         $original_amount = $order->get_subtotal();
                         
@@ -220,12 +207,10 @@ function wc_xpay_gateway_init() {
                             'wallets' => array('pay_using' => 'meeza/digital'),
                             'installment' => array(
                                 'pay_using' => 'card',
-                                'amount' => $total_amount + $current_installment_fees,
+                                'amount' => $original_amount + $current_installment_fees,
                                 'installment_period' => $installment_period
                             )
                         );
-
-                      
 
                         // Merge base payload with payment specific config
                         $payload = array_merge($base_payload, $payment_config[$payment_method]);
@@ -668,11 +653,9 @@ function enqueue_checkout_scripts() {
         'nonce'    => wp_create_nonce('validate-promo-code'),
     );
     // fetch prepare amount data stored in wc Session for checkout page in order summary 
-    $prepareAmountData = array(
-        'total_amount'          => $total_amount,
-        'xpay_fees_amount'      => $xpay_fees_amount,
-        'community_fees_amount' => $community_fees_amount,
-        'currency'              => get_option('woocommerce_currency'),
+    $initialData = array(
+        'subtotal_amount' => WC()->cart->subtotal,
+        'currency' => get_option('woocommerce_currency'),
     );
 
     // Fetch settings from the payment gateway
@@ -689,7 +672,7 @@ function enqueue_checkout_scripts() {
     wp_localize_script('xpay-scripts', 'xpayJSData', array(
         'ajax' => $sharedData,
         'promoCodeRequestData' => $promoCodeRequestData,
-        'prepareAmountData' => $prepareAmountData,
+        'initialData' => $initialData,
     ));
 }
 

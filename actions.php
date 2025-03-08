@@ -115,15 +115,11 @@ function store_promocode_resp_data_in_order_meta($order_id, $posted_data, $order
     }
 }
 
-add_action('wp_ajax_xpay_store_prepared_amount_dynamically', 'xpay_store_prepared_amount_dynamically');
-add_action('wp_ajax_nopriv_xpay_store_prepared_amount_dynamically', 'xpay_store_prepared_amount_dynamically');
-function xpay_store_prepared_amount_dynamically() {
-    // Check if a payment method was sent
-    if (!isset($_POST['payment_method'])) {
-        wp_send_json_error(array('message' => 'No payment method selected.'));
-    }
-
-    $selected_method = sanitize_text_field($_POST['payment_method']);
+add_action('wp_ajax_xpay_get_payment_methods_fees', 'xpay_get_payment_methods_fees');
+add_action('wp_ajax_nopriv_xpay_get_payment_methods_fees', 'xpay_get_payment_methods_fees');
+function xpay_get_payment_methods_fees() {
+    // Make payment method check optional
+    $selected_method = isset($_POST['payment_method']) ? sanitize_text_field($_POST['payment_method']) : '';
 
     // Ensure WooCommerce is available
     if (!function_exists('WC')) {
@@ -134,85 +130,34 @@ function xpay_store_prepared_amount_dynamically() {
     $xpay_gateway = new WC_Gateway_Xpay();
     $api_key = $xpay_gateway->get_option("payment_api_key");
     $community_id = $xpay_gateway->get_option("community_id");
+    $currency = get_option('woocommerce_currency');
     $order_amount = WC()->cart->subtotal;
 
     // Prepare XPAY API request
     $url = $xpay_gateway->get_option("iframe_base_url") . "/api/v1/payments/prepare-amount/";
-    $payload = json_encode(array(
+    $payload = array(
         "community_id" => $community_id,
         "amount" => $order_amount,
-        "selected_payment_method" => $selected_method
-    ));
+        "currency" => $currency
+    );
+    
+    // Add selected_payment_method only if it has a value
+    if (!empty($selected_method)) {
+        $payload["selected_payment_method"] = $selected_method;
+    }
+    
+    $payload = json_encode($payload);
    
     // Call XPAY API
     $response = httpPost($url, $payload, $api_key, false);
     $resp = json_decode($response, TRUE);
 
-    // Check if XPAY returned a valid amount
+    // Return the API response directly
     if (isset($resp["data"])) {
-        $selected_method_upper = strtoupper($selected_method);
-        // Get the fees based on selected payment method
-        if (isset($resp["data"][$selected_method_upper])) {
-            $method_data = $resp["data"][$selected_method_upper];
-            $new_total_amount = $method_data["total_amount"];
-            $xpay_fees = $method_data["xpay_fees_amount"];
-            $community_fees = $method_data["community_fees_amount"];
-            $currency = $method_data["total_amount_currency"];
-        } else {
-            // Use the root level data since all methods have same fees
-            $new_total_amount = $resp["data"]["total_amount"];
-            $xpay_fees = $resp["data"]["xpay_fees_amount"];
-            $community_fees = $resp["data"]["community_fees_amount"];
-            $currency = $resp["data"]["total_amount_currency"];
-        }
-
-        // Store values in WooCommerce session instead of order meta
-        WC()->session->set('xpay_payment_method', $selected_method_upper);
-        WC()->session->set('xpay_total_amount', $new_total_amount);
-        WC()->session->set('xpay_fees_amount', $xpay_fees);
-        WC()->session->set('xpay_community_fees', $community_fees);
-        WC()->session->set('xpay_currency', $currency);
-        WC()->session->set('xpay_installment_fees', $resp["data"]["installment_fees"]);
-
-        wp_send_json_success(array(
-            'total_amount' => floatval($new_total_amount),
-            'xpay_fees' => floatval($xpay_fees),
-            'community_fees' => floatval($community_fees),
-            'currency' => $currency
-        ));
+        wp_send_json_success($resp["data"]);
     } else {
         wp_send_json_error(array('message' => 'Failed to retrieve prepare amount data from Backend.'));
     }
 }
-
-// Add this new function to store session values in order meta
-add_action('woocommerce_checkout_order_processed', 'store_prepare_amount_resp_in_order_meta', 10, 3);
-function store_prepare_amount_resp_in_order_meta($order_id, $posted_data, $order) {
-    // Get values from session
-    $payment_method = WC()->session->get('xpay_payment_method');
-    $total_amount = WC()->session->get('xpay_total_amount');
-    $xpay_fees = WC()->session->get('xpay_fees_amount');
-    $community_fees = WC()->session->get('xpay_community_fees');
-    $currency = WC()->session->get('xpay_currency');
-
-    // Store in order meta
-    if ($payment_method) {
-        update_post_meta($order_id, '_xpay_payment_method', $payment_method);
-        update_post_meta($order_id, '_xpay_total_amount', $total_amount);
-        update_post_meta($order_id, '_xpay_fees_amount', $xpay_fees);
-        update_post_meta($order_id, '_xpay_community_fees', $community_fees);
-        update_post_meta($order_id, '_xpay_currency', $currency);
-        update_post_meta($order_id, '_xpay_installment_fees', $xpay_installment_fees);
-
-        // Clear session
-        WC()->session->__unset('xpay_payment_method');
-        WC()->session->__unset('xpay_total_amount');
-        WC()->session->__unset('xpay_fees_amount');
-        WC()->session->__unset('xpay_community_fees');
-        WC()->session->__unset('xpay_currency');
-        WC()->session->__unset('xpay_installment_fees');
-    }
-}
-
 
 ?>
