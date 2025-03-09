@@ -139,7 +139,6 @@ jQuery(document).ready(function ($) {
         $('.discount').remove();        
         if (totalAmount && totalAfterDiscount) {
             const discountAmount = totalAmount - totalAfterDiscount;  
-            jsprint('Discount amount: '+ discountAmount, false);          
             if (discountAmount > 0) {
                 const discountRow = `<tr class="discount">
                     <th>Discount </th>
@@ -226,7 +225,7 @@ jQuery(document).ready(function ($) {
             type: 'POST',
             url: xpayJSData.ajax.ajax_url,
             data: {
-                action: 'store_promocode_id',
+                action: 'store_promocode_details',
                 security: xpayJSData.ajax.nonce,
                 promocode_id: promocodeId,
                 discount_amount: discountAmount
@@ -284,13 +283,26 @@ jQuery(document).ready(function ($) {
             const selectedPaymentMethod = $('input[name="xpay_payment_method"]:checked').val();
             jsprint('Payment method changed to: '+ selectedPaymentMethod, false,"#00FFFF");
             
-            // Reset promo code section
+            // Reset promo code UI elements
             $('#xpay_promo_code').val('');
             $('#promo_code_message').empty();
             $('.discount').remove();
             $('.order-total th').text('Total');
             $('#promo_code_input_container').hide();
             $('#show_promo_code').text('Have Xpay Promo Code?');
+            
+            // Clear stored promo code data from session via AJAX
+            $.ajax({
+                type: 'POST',
+                url: xpayJSData.ajax.ajax_url,
+                data: {
+                    action: 'clear_promocode_details',
+                    security: xpayJSData.ajax.nonce
+                },
+                success: function(response) {
+                    jsprint('Cleared promocode data from session', false);
+                }
+            });
             
             OrderBreakdown(selectedPaymentMethod);
         });

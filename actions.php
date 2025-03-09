@@ -78,9 +78,10 @@ function handle_validate_xpay_promo_code() {
     }    
 }
 
-add_action('wp_ajax_store_promocode_id', 'store_promocode_id');
-add_action('wp_ajax_nopriv_store_promocode_id', 'store_promocode_id');
-function store_promocode_id() {
+// Update the action registration to match the function name
+add_action('wp_ajax_store_promocode_details', 'handle_store_promocode_details');
+add_action('wp_ajax_nopriv_store_promocode_details', 'handle_store_promocode_details');
+function handle_store_promocode_details() {
     check_ajax_referer('validate-promo-code', 'security');
     
     // Get the promocode_id and discount_amount from the AJAX request
@@ -98,21 +99,18 @@ function store_promocode_id() {
     ));
 }
 
-add_action('woocommerce_checkout_order_processed', 'store_promocode_resp_data_in_order_meta', 10, 3);
-function store_promocode_resp_data_in_order_meta($order_id, $posted_data, $order) {
-    $promocode_id = WC()->session->get('promocode_id');
-    $discount_amount = WC()->session->get('discount_amount');
-    // store the values in order meta ro be used in thank you
-    if ($promocode_id && $discount_amount) {
-        update_post_meta($order_id, '_xpay_promocode_id', $promocode_id);
-        update_post_meta($order_id, '_xpay_discount_amount', $discount_amount);
-
-        // Clear both session variables
-        WC()->session->__unset('promocode_id');
-        WC()->session->__unset('discount_amount');
-    } else {
-        jsprint("Debug: Missing promocode_id or discount_amount in session.", false);
-    }
+add_action('wp_ajax_clear_promocode_details', 'handle_clear_promocode_details');
+add_action('wp_ajax_nopriv_clear_promocode_details', 'handle_clear_promocode_details');
+function handle_clear_promocode_details() {
+    check_ajax_referer('validate-promo-code', 'security');
+    
+    // Clear promo code data from session
+    WC()->session->__unset('promocode_id');
+    WC()->session->__unset('discount_amount');
+    
+    wp_send_json_success(array(
+        'message' => 'Promo code cleared successfully'
+    ));
 }
 
 add_action('wp_ajax_xpay_get_payment_methods_fees', 'xpay_get_payment_methods_fees');

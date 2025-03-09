@@ -4,8 +4,8 @@
     /* Promo Code Styles */
     .xpay-show-promo-button {
         background-color: #f8f9fa;
-        color: #0073aa;
-        border: 2px dashed #0073aa;
+        color: #272265;
+        border: 2px dashed #272265;
         padding: 8px 15px;
         border-radius: 4px;
         cursor: pointer;
@@ -16,7 +16,7 @@
     }
 
     .xpay-show-promo-button:hover {
-        background-color: #0073aa;
+        background-color: #272265;
         color: white;
         border-style: solid;
     }
@@ -27,7 +27,7 @@
     }
 
     .xpay-apply-button {
-        background-color: #0073aa !important;
+        background-color: #272265 !important;
         color: white !important;
         border: none !important;
         padding: 8px 15px !important;

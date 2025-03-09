@@ -137,14 +137,11 @@ function wc_xpay_gateway_init() {
                     $payment_method = isset($_REQUEST["xpay_payment"]) ? $_REQUEST["xpay_payment"] : '';
 
                     $installment_period = isset($_REQUEST["xpay_installment_period"]) ? $_REQUEST["xpay_installment_period"] : '';   
-                    $order_id = $order->get_id();
-                    $promocode_id = get_post_meta($order_id, '_xpay_promocode_id', true);
-                    $discount_amount = get_post_meta($order_id, '_xpay_discount_amount', true);
-                    $installment_fees = get_post_meta($order_id, '_xpay_installment_fees', true);
-                    error_log("Debug: Type of installment_fees from post_meta: " . gettype($installment_fees));
-                    error_log("Debug: installment_fees: ". json_encode($installment_fees));
-
+                    // Get promo code data from session instead of meta
+                    $promocode_id = WC()->session->get('promocode_id');
+                    $discount_amount = WC()->session->get('discount_amount');
                     error_log("Debug: Retrieved promocode_id on Thank You page: " . $promocode_id);
+                    error_log("Debug: Retrieved discount_amount on Thank You page: ". $discount_amount);
 
                     // Check if the xpay_payment parameter exists
                     if ($payment_method) {
