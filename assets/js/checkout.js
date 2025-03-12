@@ -123,7 +123,7 @@ jQuery(document).ready(function ($) {
                         }
                     };
                     paymentMethodsData = responseData;
-                    OrderBreakdown(selectedMethod='card');
+                    // OrderBreakdown(selectedMethod='card');
                 } else {
                     jsprint("Failed to update amount: " + response.message, false);
                 }
@@ -209,11 +209,11 @@ jQuery(document).ready(function ($) {
                     handleSuccessfulPromo(response);
                 } else {
                     displayMessage(response.data ? response.data.message : 'Invalid promo code');
-                    $('.discount').remove();
-                    $('.order-total th').text('Total');
-                    $('.order-total .woocommerce-Price-amount bdi').text(`${originalTotal.toFixed(2)} ${currency}`);
-                    $('.order-total .woocommerce-Price-amount amount').text(originalTotal.toFixed(2));
-                    $('input[name="order_total"]').val(originalTotal.toFixed(2));
+                    // $('.discount').remove();
+                    // $('.order-total th').text('Total');
+                    // $('.order-total .woocommerce-Price-amount bdi').text(`${originalTotal.toFixed(2)} ${currency}`);
+                    // $('.order-total .woocommerce-Price-amount amount').text(originalTotal.toFixed(2));
+                    // $('input[name="order_total"]').val(originalTotal.toFixed(2));
                 }
             }
         });
@@ -239,7 +239,8 @@ jQuery(document).ready(function ($) {
     // Handle successful promo code application
     function handleSuccessfulPromo(response) {
         const formattedAmount = parseFloat(response.data.value).toFixed(2);
-        const message = `Promo Code Applied! New total: ${formattedAmount} ${response.data.currency}`;
+        // const message = `Promo Code Applied! New total: ${formattedAmount} ${response.data.currency}`;
+        const message = "Promocode applied successfully"
         displayMessage(message, true);
 
         // Get the current selected payment method's total
@@ -249,7 +250,7 @@ jQuery(document).ready(function ($) {
         const totalAfterDiscount = parseFloat(response.data.value);
         const currency = response.data.currency;
         
-        OrderDiscount(totalAmount, totalAfterDiscount, currency);
+        // OrderDiscount(totalAmount, totalAfterDiscount, currency);
         storePromocode(response.data.promocode_id, response.data.value);
     }
 
@@ -304,7 +305,7 @@ jQuery(document).ready(function ($) {
                 }
             });
             
-            OrderBreakdown(selectedPaymentMethod);
+            // OrderBreakdown(selectedPaymentMethod);
         });
 
     $(document.body).on('updated_checkout', function() {
