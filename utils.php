@@ -41,12 +41,18 @@ function httpGet($url, $api_key, $debug = 'no')
 }
 
 function jsprint($output, $is_alert=true, $with_script_tags = true) {
+    // For server-side logging
+    if (defined('DOING_AJAX') && DOING_AJAX) {
+        error_log(print_r($output, true));
+        return;
+    }
+    
+    // For client-side output
     if($is_alert) {
-		$js_code = 'alert(' . json_encode($output, JSON_HEX_TAG) . ');';
-	}
-	else {
-	$js_code = 'console.log(' . json_encode($output, JSON_HEX_TAG) . ');';
-	}
+        $js_code = 'alert(' . json_encode($output, JSON_HEX_TAG) . ');';
+    } else {
+        $js_code = 'console.log(' . json_encode($output, JSON_HEX_TAG) . ');';
+    }
     if ($with_script_tags) {
         $js_code = '<script>' . $js_code . '</script>';
     }
