@@ -62,13 +62,40 @@ add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), 'wc_xpay_gatew
  * @author 		Xpay
  */
 add_action( 'plugins_loaded', 'wc_xpay_gateway_init', 11);
+/**
+ * Validates the billing phone number field on checkout
+ * 
+ * UPDATE:
+ * This validation now accepts phone numbers from any country with various formats:
+ * - With or without country code (e.g., +1, +44)
+ * - With common separators (space, dash, period)
+ * - Different length standards around the world (typically 8-15 digits)
+ * - With or without parentheses for area codes
+ * 
+ * Examples of valid formats:
+ * - +1 (555) 123-4567
+ * - +44 7911 123456
+ * - 0123456789
+ * - +86 123 4567 8901
+ */
 function xpay_custom_validate_billing_phone() {
-	if (isset($_POST['billing_phone'])) {
-		$is_correct = preg_match("/^01[0-9]{9}$/", $_POST['billing_phone']);
-		if (!$is_correct) {
-			wc_add_notice(__('The Phone field should start with 01 and be 11 digits long, e.g., 012987654321', 'wc-gateway-xpay'), 'error');
-		}
-	}
+    if (isset($_POST['billing_phone'])) {
+        // Simplified but effective international phone validation
+        // This will accept almost any reasonable phone number format
+        $phone = trim($_POST['billing_phone']);
+        
+        // Remove all non-numeric characters except the leading +
+        $digits_only = preg_replace('/[^\d+]/', '', $phone);
+        
+        // Check if we have at least 7 digits (minimum reasonable phone number length)
+        // and not more than 15 digits (maximum length per E.164 standard)
+        $digits_count = strlen(ltrim($digits_only, '+'));
+        $is_correct = ($digits_count >= 7 && $digits_count <= 15);
+        
+        if (!$is_correct) {
+            wc_add_notice(__('Please enter a valid phone number. International format is accepted (e.g., +1 123 456 7890).', 'wc-gateway-xpay'), 'error');
+        }
+    }
 }
 add_action('woocommerce_checkout_process', 'xpay_custom_validate_billing_phone');
 
