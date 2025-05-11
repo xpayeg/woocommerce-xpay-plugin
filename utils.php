@@ -79,10 +79,29 @@ function fetch_installment_plans() {
     ));
     $resp = httpPost($url, $payload, $api_key, FALSE);
     $decoded_resp = json_decode($resp, TRUE);
-    
     echo json_encode($resp);
-   
+    wp_die();
+}
 
+
+add_action('wp_ajax_fetch_installment_plans_with_promocode', 'fetch_installment_plans_with_promocode');
+
+function fetch_installment_plans_with_promocode() {
+    $amount = isset($_POST['amount']) ? sanitize_text_field($_POST['amount']) : null; 
+    $url = isset($_POST['url']) ? esc_url_raw($_POST['url']) : null; 
+    $api_key = isset($_POST['api_key']) ? sanitize_text_field($_POST['api_key']) : null; 
+    $selected_payment_method = "installment";
+    $community_id = isset($_POST['community_id']) ? sanitize_text_field($_POST['community_id']) : null; 
+    $promocode = isset($_POST['promocode']) ? sanitize_text_field($_POST['promocode']) : null; 
+    $debug = true;
+    $payload = json_encode(array(
+        'amount' => $amount,
+        'selected_payment_method' => $selected_payment_method,
+        'community_id' => $community_id,
+        'promocode' => $promocode
+    ));
+    $resp = httpPost($url, $payload, $api_key, FALSE);
+    echo json_encode($resp);
     wp_die();
 }
 

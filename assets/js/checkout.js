@@ -189,12 +189,16 @@ jQuery(document).ready(function ($) {
 
     // 4. Promo Code Core Functions
     function validatePromoCode(promoCode) {
+        console.log('Validating promo code: ' + promoCode);
         const data = getPromoCodeData(promoCode);
         const selectedMethod = $('input[name="xpay_payment_method"]:checked').val();
         const methodName = selectedMethod ? selectedMethod.toUpperCase() : 'CARD';
         const originalTotal = paymentMethodsData[methodName]?.total_amount || paymentMethodsData.total_amount;
         const currency = xpayJSData.promoCodeRequestData.currency;
-
+        console.log("XDFDS", $('.installment-card').first().data('data-duration'));
+        if($('.installment-card').is(':visible')) {
+            console.log($('.installment-card'));
+        }
         $.ajax({
             type: 'POST',
             url: xpayJSData.ajax.ajax_url,
@@ -202,7 +206,6 @@ jQuery(document).ready(function ($) {
             data: data,
             beforeSend: () => toggleButtonState(true),
             success: function(response) {
-                jsprint('Promocode response received: ' + JSON.stringify(response), false);
                 toggleButtonState(false);
 
                 if (response.success) {
@@ -258,7 +261,7 @@ jQuery(document).ready(function ($) {
         function initPromoCodeFunctionality() {
             // Initially hide promo code input section
             $('.promo-code-input-section').hide();
-            
+            console.log('Promo code input section hidden');
             // Handle "Have Xpay Promo Code?" click
             $('.promo-code-toggle').on('click', function(e) {
                 e.preventDefault();
@@ -269,13 +272,16 @@ jQuery(document).ready(function ($) {
             $('#apply_promo_code').on('click', function(e) {
                 e.preventDefault();
                 const promoCode = $('#xpay_promo_code').val();
-                
+                $('#installment_options').hide();
+                $('#installment_options').removeAttr('checked');
+                $('#xpay_entered_promocode').val(promoCode);
                 if (!promoCode) {
                     displayMessage('Please enter a promo code');
                     return;
                 }
                 
                 validatePromoCode(promoCode);
+
             });
         }
         
