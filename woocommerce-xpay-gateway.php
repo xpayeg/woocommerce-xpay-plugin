@@ -186,7 +186,7 @@ function wc_xpay_gateway_init() {
                         ));
                         $resp = httpPost($url, $payload, $api_key, $debug);
                         $resp = json_decode($resp, TRUE);
-                        $installment_fees = $resp["data"]["installment_fees"];
+                        $installment_fees = isset($resp["data"]["installment_fees"]) ? $resp["data"]["installment_fees"] : [];
                         $total_amount = $resp["data"]["total_amount"];
                         
                         $original_amount = $order->get_subtotal();
