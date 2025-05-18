@@ -129,7 +129,7 @@ function xpay_get_payment_methods_fees() {
     $api_key = $xpay_gateway->get_option("payment_api_key");
     $community_id = $xpay_gateway->get_option("community_id");
     $currency = get_option('woocommerce_currency');
-    $order_amount = WC()->cart->subtotal;
+    $order_amount = WC()->cart->total;
 
     // Prepare XPAY API request
     $url = $xpay_gateway->get_option("iframe_base_url") . "/api/v1/payments/prepare-amount/";
