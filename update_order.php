@@ -8,11 +8,8 @@ header('Content-Type: application/json');
 $inputJSON = file_get_contents('php://input');
 $data = json_decode($inputJSON, true);
 
-// Extract from nested "extra_details"
-$details = isset($data["extra_details"]) ? $data["extra_details"] : [];
-
-$transaction_id = isset($details["transaction_id"]) ? trim($details["transaction_id"]) : null;
-$transaction_status = isset($details["transaction_status"]) ? $details["transaction_status"] : null;
+$transaction_id = isset($data["transaction_id"]) ? trim($data["transaction_id"]) : null;
+$transaction_status = isset($data["transaction_status"]) ? $data["transaction_status"] : null;
 
 // Handle missing transaction_id
 if (!$transaction_id) {
@@ -24,7 +21,7 @@ if (!$transaction_id) {
 
 global $wpdb;
 
-// Use a safe query
+// Use a safe query to find post ID by transaction ID
 $posts = $wpdb->get_results(
     $wpdb->prepare(
         "SELECT * FROM $wpdb->postmeta WHERE meta_key = %s AND meta_value = %s LIMIT 1",
@@ -45,6 +42,7 @@ if (empty($posts)) {
 $post_id = $posts[0]["post_id"];
 $order = wc_get_order($post_id);
 
+// If order not found for the post ID
 if (!$order) {
     wp_send_json_error([
         'message' => 'Order not found for given transaction ID',
@@ -53,7 +51,7 @@ if (!$order) {
     ]);
 }
 
-// Update status and return success
+// Update order status based on transaction result
 if ($transaction_status === "SUCCESSFUL") {
     $order->update_status('completed', __('Awaiting approval', 'wc-gateway-xpay'));
     wp_send_json_success([
