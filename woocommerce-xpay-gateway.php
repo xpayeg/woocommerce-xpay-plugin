@@ -366,7 +366,7 @@ function wc_xpay_gateway_init() {
                         'http://127.0.0.1:8000' => __('Local'),
                         'https://new-dev.xpay.app' => __('Development'),
                         'http://staging.xpay.app' => __('Staging'),
-                        'https://communities.xpay.app' => __('Production'),
+                        'https://community.xpay.app' => __('Production'),
                     ),
                     'default' => 'https://staging.xpay.app'
                 ),
