@@ -365,7 +365,7 @@ function wc_xpay_gateway_init() {
                     'options' => array(
                         'http://127.0.0.1:8000' => __('Local'),
                         'https://new-dev.xpay.app' => __('Development'),
-                        'http://staging.xpay.app' => __('Staging'),
+                        'https://staging.xpay.app' => __('Staging'),
                         'https://community.xpay.app' => __('Production'),
                     ),
                     'default' => 'https://staging.xpay.app'
@@ -414,9 +414,10 @@ function wc_xpay_gateway_init() {
                 'Installment' => __('Installment', 'wc-gateway-xpay'),
             ];
 
-            if ($data['data']['supports_installments']) {
-                $payment_methods['installment'] = 'Installment';
+            if (isset($data['data']['supports_installments']) && $data['data']['supports_installments'] === true) {
+                $payment_methods[] = 'installment'; 
             }
+
 
             echo '<div class="form-row form-row-first">
                     <label for="xpay_payment_method">' . __('Payment Method', 'wc-gateway-xpay') . ' <span class="required">*</span></label>
