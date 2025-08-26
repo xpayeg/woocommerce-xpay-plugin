@@ -31,7 +31,7 @@ function wc_xpay_add_to_gateways( $gateways ) {
 	$gateways[] = 'WC_Gateway_Xpay';
 	return $gateways;
 }
-add_filter( 'woocommerce_payment_gateways', 'wc_xpay_add_to_gateways' );
+// add_filter( 'woocommerce_payment_gateways', 'wc_xpay_add_to_gateways' );
 
 
 /**
@@ -103,6 +103,9 @@ add_action('woocommerce_checkout_process', 'xpay_custom_validate_billing_phone')
 function wc_xpay_gateway_init() {
 
 	class WC_Gateway_Xpay extends WC_Payment_Gateway {
+        public $xpay_plugin_url;
+        public $instructions;
+        public $currency;
 
         /**
          * Constructor for the gateway.
@@ -116,7 +119,7 @@ function wc_xpay_gateway_init() {
             $this->method_description = __('Xpay gateway allow online payment', 'wc-gateway-xpay');
 
             // Load the settings.
-            $this->init_form_fields();
+            add_action('init', array($this, 'init_form_fields'));
             $this->init_settings();
 
             // Define user set variables
@@ -582,6 +585,136 @@ function wc_xpay_gateway_init() {
     }
 }
 
+// ================= MULTI-GATEWAY SUPPORT START =================
+add_filter('woocommerce_payment_gateways', 'wc_xpay_usd_egp_gateways');
+function wc_xpay_usd_egp_gateways($gateways) {
+    $currencies = array('USD', 'EGP');
+    foreach ($currencies as $currency) {
+        $class_name = 'WC_Gateway_Xpay_' . $currency;
+        if (!class_exists($class_name)) {
+            eval('
+            class ' . $class_name . ' extends WC_Payment_Gateway {
+                public $xpay_plugin_url;
+                public $instructions;
+                public $currency;
+                public function __construct() {
+                    $this->id = "xpay_gateway_' . strtolower($currency) . '";
+                    $this->method_title = "Xpay ' . $currency . '";
+                    $this->title = "Xpay ' . $currency . '";
+                    $this->currency = "' . $currency . '";
+                    $this->method_description = "Xpay gateway allows online payment in ' . $currency . '";
+                    $this->has_fields = true;
+                    $this->xpay_plugin_url = plugin_dir_url(__FILE__);
+                    $this->icon = apply_filters("woocommerce_offline_icon", "");
+                    $this->init_form_fields();
+                    $this->init_settings();
+                    $this->description = $this->get_option("description");
+                    $this->instructions = $this->get_option("instructions", $this->description);
+                    add_action("woocommerce_update_options_payment_gateways_" . $this->id, array($this, "process_admin_options"));
+                    add_action("woocommerce_credit_card_form_start", array($this, "payment_fields"));
+                }
+                public function init_form_fields() {
+                    $this->form_fields = array(
+                        "enabled" => array(
+                            "title" => __("Enable/Disable", "wc-gateway-xpay"),
+                            "type" => "checkbox",
+                            "label" => __("Enable Xpay Payment", "wc-gateway-xpay"),
+                            "default" => "yes"
+                        ),
+                        "title" => array(
+                            "title" => __("Title", "wc-gateway-xpay"),
+                            "type" => "text",
+                            "description" => __("This controls the title for the payment method the customer sees during checkout.", "wc-gateway-xpay"),
+                            "default" => __("Xpay Payment", "wc-gateway-xpay"),
+                            "desc_tip" => true
+                        ),
+                        "description" => array(
+                            "title" => __("Description", "wc-gateway-xpay"),
+                            "type" => "textarea",
+                            "description" => __("Payment method description that the customer will see on your checkout.", "wc-gateway-xpay"),
+                            "default" => __("Please remit payment to Store Name upon pickup or delivery.", "wc-gateway-xpay"),
+                            "desc_tip" => true
+                        ),
+                        "instructions" => array(
+                            "title" => __("Instructions", "wc-gateway-xpay"),
+                            "type" => "textarea",
+                            "description" => __("Instructions that will be added to the thank you page and emails.", "wc-gateway-xpay"),
+                            "default" => "",
+                            "desc_tip" => true
+                        ),
+                        "community_id" => array(
+                            "title" => __("Community ID", "wc-gateway-xpay"),
+                            "type" => "text",
+                            "description" => __("This is the ID of your community you get form Xpay", "wc-gateway-xpay"),
+                            "desc_tip" => true,
+                            "required" => true
+                        ),
+                        "currency" => array(
+                            "title" => __("currency", "wc-gateway-xpay"),
+                            "type" => "select",
+                            "required" => true,
+                            "options" => array(
+                                "USD" => "USD",
+                                "EGP" => "EGP"
+                            ),
+                            "default" => "' . $currency . '"
+                        ),
+                        "variable_amount_id" => array(
+                            "title" => __("Variable Amount Template ID", "wc-gateway-xpay"),
+                            "type" => "text",
+                            "description" => __("This is the ID of your variable amount object you created on Xpay", "wc-gateway-xpay"),
+                            "default" => "",
+                            "desc_tip" => true
+                        ),
+                        "payment_api_key" => array(
+                            "title" => __("XPAY payment API key", "wc-gateway-xpay"),
+                            "type" => "text",
+                            "description" => __("This is the API key you get from Xpay", "wc-gateway-xpay"),
+                            "default" => "",
+                            "desc_tip" => true
+                        ),
+                        "iframe_base_url" => array(
+                            "title" => __("Environment", "wc-gateway-xpay"),
+                            "type" => "select",
+                            "required" => true,
+                            "options" => array(
+                                "http://127.0.0.1:8000" => __("Local", "wc-gateway-xpay"),
+                                "https://new-dev.xpay.app" => __("Development", "wc-gateway-xpay"),
+                                "https://staging.xpay.app" => __("Staging", "wc-gateway-xpay"),
+                                "https://community.xpay.app" => __("Production", "wc-gateway-xpay")
+                            ),
+                            "default" => "https://staging.xpay.app"
+                        ),
+                        "callback_url" => array(
+                            "title" => __("Callback URL :<h4 style=\"width: max-content;color:blue\">" . plugin_dir_url(__FILE__) . "update_order.php <h4>", "wc-gateway-xpay"),
+                            "type" => "text",
+                            "description" => __("This is callback url that you will add in your api payment on xpay dashboard", "wc-gateway-xpay"),
+                            "default" => plugin_dir_url(__FILE__) . "update_order.php",
+                            "custom_attributes" => array("hidden" => true)
+                        ),
+                        "debug" => array(
+                            "title" => __("Debug", "wc-gateway-xpay"),
+                            "type" => "checkbox",
+                            "label" => __("Enable debug alert messages", "wc-gateway-xpay"),
+                            "default" => "no"
+                        )
+                    );
+                }
+                public function process_admin_options() {
+                    parent::process_admin_options();
+                }
+                public function payment_fields() {
+                    parent::payment_fields();
+                }
+            }
+            ');
+        }
+        $gateways[] = $class_name;
+    }
+    return $gateways;
+}
+// ================= MULTI-GATEWAY SUPPORT END =================
+
 if (!function_exists("generate_payment_modal")) {
     function generate_payment_modal($iframe_url, $trn_uuid, $order_id, $community_id) {
         // jQuery code start below
@@ -700,5 +833,3 @@ function enqueue_checkout_scripts() {
         'initialData' => $initialData,
     ));
 }
-
-?>
