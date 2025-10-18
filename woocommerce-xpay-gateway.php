@@ -649,12 +649,19 @@ if (!function_exists("generate_payment_modal")) {
 // Enqueue styles
 add_action('wp_enqueue_scripts', 'enqueue_xpay_styles');
 function enqueue_xpay_styles() {
+    if (is_admin()) {
+        return;
+    }
     wp_enqueue_style('xpay-styles', plugin_dir_url(__FILE__) . 'assets/css/style.css');
 }
 
 // Enqueue scripts
 add_action('wp_enqueue_scripts', 'enqueue_checkout_scripts');
 function enqueue_checkout_scripts() {
+    // Prevent running in admin area
+    if (is_admin()) {
+        return;
+    }
     // Get WooCommerce settings
     $xpay_gateway = new WC_Gateway_Xpay();
     
