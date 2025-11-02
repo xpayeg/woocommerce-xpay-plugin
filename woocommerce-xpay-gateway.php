@@ -415,7 +415,7 @@ function wc_xpay_gateway_init() {
             ];
 
             if (isset($data['data']['supports_installments']) && $data['data']['supports_installments'] === true) {
-                $payment_methods[] = 'installment'; 
+                $payment_methods['installment'] = 'Installment';
             }
 
 
