@@ -175,7 +175,7 @@ function wc_xpay_gateway_init() {
                         $api_key = $wc_settings->get_option("payment_api_key");
                         $debug = $wc_settings->get_option("debug");
                         $community_id = $wc_settings->get_option("community_id");
-                        $subtotal_amount = $order->get_subtotal();                        
+                        $subtotal_amount = $order->get_total();                        
                     
                         // Prepare amount
                         $url = $wc_settings->get_option("iframe_base_url") . "/api/v1/payments/prepare-amount/";
@@ -189,7 +189,7 @@ function wc_xpay_gateway_init() {
                         $installment_fees = isset($resp["data"]["installment_fees"]) ? $resp["data"]["installment_fees"] : [];
                         $total_amount = $resp["data"]["total_amount"];
                         
-                        $original_amount = $order->get_subtotal();
+                        $original_amount = $order->get_total();
                         
                         // Base payload for all payment methods
                         $base_payload = array(
@@ -686,7 +686,7 @@ function enqueue_checkout_scripts() {
     );
     // fetch prepare amount data stored in wc Session for checkout page in order summary 
     $initialData = array(
-        'subtotal_amount' => WC()->cart->subtotal,
+        'subtotal_amount' => WC()->cart->total,
         'currency' => get_option('woocommerce_currency'),
     );
 
